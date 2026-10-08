@@ -1,0 +1,64 @@
+
+[2026-10-09T00:15:48.640Z] === E2E 7.3 START ===
+[2026-10-09T00:15:48.650Z] CCC=D:/Programs/ccc/ccc.exe  PROFILE=minimax_m3  PROMPT=回复OK两个字  RUNS=50
+[2026-10-09T00:15:48.672Z] Initial: ccc handles=0, claude handles=0, ccc procs=0, claude procs=0
+[2026-10-09T00:15:48.699Z] Baseline handles: ccc=0  claude=0
+[2026-10-09T00:15:59.107Z] [1/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:16:09.317Z] [2/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:16:20.158Z] [3/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:16:29.123Z] [4/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:16:39.501Z] [5/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:16:49.301Z] [6/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:16:57.814Z] [7/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:17:06.207Z] [8/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:17:28.648Z] [9/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:17:37.103Z] [10/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:17:49.070Z] [11/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:18:01.080Z] [12/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:18:14.341Z] [13/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:18:23.902Z] [14/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:18:31.857Z] [15/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:18:39.587Z] [16/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:18:48.856Z] [17/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:18:59.367Z] [18/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:19:10.800Z] [19/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:19:21.111Z] [20/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:19:29.390Z] [21/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:19:40.809Z] [22/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:19:50.098Z] [23/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:19:58.888Z] [24/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:20:09.433Z] [25/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:20:18.953Z] [26/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:20:29.269Z] [27/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:20:40.464Z] [28/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:20:50.678Z] [29/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:20:59.452Z] [30/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:21:07.641Z] [31/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:21:16.280Z] [32/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:21:26.712Z] [33/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:21:36.360Z] [34/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:21:46.371Z] [35/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:22:03.768Z] [36/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:22:14.206Z] [37/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:22:23.600Z] [38/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:22:34.482Z] [39/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:22:45.113Z] [40/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:22:55.243Z] [41/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:23:05.143Z] [42/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:23:52.188Z] [43/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:24:02.388Z] [44/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:24:12.646Z] [45/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:24:22.010Z] [46/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:24:31.184Z] [47/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:24:38.522Z] [48/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:24:47.830Z] [49/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:24:58.276Z] [50/50] ✓  ms  ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:25:00.325Z] 
+[2026-10-09T00:25:00.334Z] === E2E 7.3 END ===
+[2026-10-09T00:25:00.345Z] Total time: 00:09:09.5783111 (550s)
+[2026-10-09T00:25:00.355Z] Successful runs: 50 / 50
+[2026-10-09T00:25:00.363Z] Failed runs: 0
+[2026-10-09T00:25:00.372Z] Final handle counts (after 2s drain): ccc=0h/0p  claude=0h/0p
+[2026-10-09T00:25:00.382Z] Final delta vs baseline: ccc=0  claude=0
+[2026-10-09T00:25:00.400Z] Results: E:\__work\__github\ccc\tmp\e2e_7_3_results.json
+[2026-10-09T00:25:00.407Z] Log: E:\__work\__github\ccc\tmp\e2e_7_3.log

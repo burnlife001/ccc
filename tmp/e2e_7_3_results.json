@@ -1,0 +1,502 @@
+[
+  {
+    "i": 1,
+    "ec": 0,
+    "ms": 10336,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 2,
+    "ec": 0,
+    "ms": 10172,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 3,
+    "ec": 0,
+    "ms": 10820,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 4,
+    "ec": 0,
+    "ms": 8943,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 5,
+    "ec": 0,
+    "ms": 10353,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 6,
+    "ec": 0,
+    "ms": 9776,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 7,
+    "ec": 0,
+    "ms": 8481,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 8,
+    "ec": 0,
+    "ms": 8372,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 9,
+    "ec": 0,
+    "ms": 22421,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 10,
+    "ec": 0,
+    "ms": 8433,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 11,
+    "ec": 0,
+    "ms": 11946,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 12,
+    "ec": 0,
+    "ms": 11990,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 13,
+    "ec": 0,
+    "ms": 13242,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 14,
+    "ec": 0,
+    "ms": 9541,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 15,
+    "ec": 0,
+    "ms": 7935,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 16,
+    "ec": 0,
+    "ms": 7707,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 17,
+    "ec": 0,
+    "ms": 9248,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 18,
+    "ec": 0,
+    "ms": 10489,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 19,
+    "ec": 0,
+    "ms": 11413,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 20,
+    "ec": 0,
+    "ms": 10286,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 21,
+    "ec": 0,
+    "ms": 8259,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 22,
+    "ec": 0,
+    "ms": 11396,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 23,
+    "ec": 0,
+    "ms": 9268,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 24,
+    "ec": 0,
+    "ms": 8768,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 25,
+    "ec": 0,
+    "ms": 10521,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 26,
+    "ec": 0,
+    "ms": 9498,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 27,
+    "ec": 0,
+    "ms": 10294,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 28,
+    "ec": 0,
+    "ms": 11174,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 29,
+    "ec": 0,
+    "ms": 10194,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 30,
+    "ec": 0,
+    "ms": 8752,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 31,
+    "ec": 0,
+    "ms": 8161,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 32,
+    "ec": 0,
+    "ms": 8616,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 33,
+    "ec": 0,
+    "ms": 10408,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 34,
+    "ec": 0,
+    "ms": 9627,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 35,
+    "ec": 0,
+    "ms": 9988,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 36,
+    "ec": 0,
+    "ms": 17374,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 37,
+    "ec": 0,
+    "ms": 10417,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 38,
+    "ec": 0,
+    "ms": 9371,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 39,
+    "ec": 0,
+    "ms": 10862,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 40,
+    "ec": 0,
+    "ms": 10611,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 41,
+    "ec": 0,
+    "ms": 10111,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 42,
+    "ec": 0,
+    "ms": 9877,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 43,
+    "ec": 0,
+    "ms": 47024,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 44,
+    "ec": 0,
+    "ms": 10176,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 45,
+    "ec": 0,
+    "ms": 10243,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 46,
+    "ec": 0,
+    "ms": 9342,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 47,
+    "ec": 0,
+    "ms": 9153,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 48,
+    "ec": 0,
+    "ms": 7314,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 49,
+    "ec": 0,
+    "ms": 9286,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  },
+  {
+    "i": 50,
+    "ec": 0,
+    "ms": 10422,
+    "ccc_handles": 0,
+    "claude_handles": 0,
+    "ccc_procs": 0,
+    "claude_procs": 0,
+    "out_tail": "[claude-code:unrecognized_model] {\"model\":\"MiniMax-M3\",\"query_source\":\"sdk\"}\r\nOK"
+  }
+]
