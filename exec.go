@@ -139,8 +139,8 @@ func spawnInteractive(resolve string, prefix, args []string) error {
 // 退出码透传。session_id 由 cli 层决定是否落盘。
 func spawnHeadless(resolve string, prefix, args []string) (ExecResult, error) {
 	cmd := buildCmd(resolve, prefix, args)
-	cmd.Stderr = os.Stderr       // 进度/报错直传,免得用户看不到 claude 原生错误
-	cmd.Stdin = os.Stdin         // 保留,以防后续 pipe 输入
+	cmd.Stderr = os.Stderr // 进度/报错直传,免得用户看不到 claude 原生错误
+	cmd.Stdin = os.Stdin   // 保留,以防后续 pipe 输入
 	cmd.Env = strippedAnthropicEnv()
 
 	// cmd.Output() 内部用 os.Pipe + 标准库 goroutine 拷贝,

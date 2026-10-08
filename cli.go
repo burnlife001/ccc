@@ -206,9 +206,10 @@ func cmdRm(name string) int {
 // ----- profile / profile:continue 模式 -----
 
 // cmdProfile 解析形如:
-//   ccc <profile> [args...]                    → 交互透传
-//   ccc <profile>:continue [args...]            → 续接上一会话(headless)
-//   ccc <profile> -p "task" [args...]           → headless 一次性
+//
+//	ccc <profile> [args...]                    → 交互透传
+//	ccc <profile>:continue [args...]            → 续接上一会话(headless)
+//	ccc <profile> -p "task" [args...]           → headless 一次性
 func cmdProfile(args []string) int {
 	head := args[0]
 	continueMode := false
