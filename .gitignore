@@ -1,0 +1,45 @@
+# ===== ccc 自有产物 =====
+ccc
+ccc.exe
+*.exe
+dist/
+build/
+out/
+
+# ===== Go =====
+# 注意：go.sum 必须 commit，不忽略
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# ===== 系统 / 编辑器 =====
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
+
+# ===== .claude/ —— 只保留根文档，其余本地数据不入库 =====
+# 项目记忆保留
+!.claude/CLAUDE.md
+# 其它一律排除（local 覆盖、缓存、调试、会话数据）
+.claude/settings.local.json
+.claude/cache/
+.claude/debug/
+.claude/file-history/
+.claude/session-env/
+.claude/sessions/
+.claude/shell-snapshots/
+.claude/statsig/
+.claude/todos/
+.claude/projects/
+.claude/plugins/cache/
+.claude/plugins/data/
+.claude/plugins/repos/
+
+# ===== docs/ —— 参考源全收，但排除复制残留 =====
+# TypeScript 参考源保留
+# ccs-lite-reference/ 正常入仓
+docs/**/*.tmp
