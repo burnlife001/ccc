@@ -13,7 +13,7 @@
 - [为什么用 ccc](#为什么用-ccc)
 - [安装](#安装)
 - [快速开始](#快速开始)
-- [六个命令](#六个命令)
+- [八个命令](#八个命令)
 - [Profile JSON 字段说明](#profile-json-字段说明)
 - [完整示例](#完整示例)
 - [常见问题](#常见问题)
@@ -87,7 +87,7 @@ ccc minimax_m3 -p "你好"
 
 ---
 
-## 六个命令
+## 八个命令
 
 ```
 ccc <profile>           # 启动交互式 claude 会话
@@ -131,7 +131,7 @@ ccc minimax_m3:continue -p "我刚才让你记的数字?"
 ```
 
 - 从 `~/.ccc/sessions.json` 读出 profile 对应的 `session_id`
-- 没有 session_id?明确报错 `No previous session found for <profile>`,exit code ≠ 0
+- 没有 session_id?明确报错 `ccc: no previous session for profile "<name>"; run \`ccc <name> -p "task"\` first`,exit code ≠ 0
 - 拼 `--resume <sessionId>` 透传给 claude
 
 #### 4. `ccc list`
@@ -155,10 +155,9 @@ ccc add my_gpt
 
 进入交互式提问(顺序):
 
-1. `base_url`(默认 `https://api.anthropic.com`)
-2. `token`(留空 = 从环境变量读)
-3. `model`(默认 `claude-sonnet-4-5`)
-4. 可选:permission mode / allow 列表 / haiku / opus 模型覆盖
+1. `base_url`(默认 `https://api.minimaxi.com/anthropic`)
+2. `token`(留空 = 依次从 `$ANTHROPIC_AUTH_TOKEN` / `$ANTHROPIC_API_KEY` 环境变量读)
+3. `model`(默认 `MiniMax-M3`)
 
 生成 `~/.ccc/profiles/my_gpt.json`(模板见 [完整示例](#完整示例))。
 
@@ -180,7 +179,7 @@ ccc which minimax_m3
 输出完整命令行,**路径全是绝对路径**(无 `~`、无相对路径):
 
 ```
-claude --settings C:\Users\yg\.ccc\profiles\minimax_m3.json
+"C:\Users\yg\.local\bin\claude.exe" "--settings" "C:\Users\yg\.ccc\profiles\minimax_m3.json"
 ```
 
 支持透传参数:
@@ -192,7 +191,7 @@ ccc which minimax_m3 --max-turns 5
 →
 
 ```
-claude --settings C:\Users\yg\.ccc\profiles\minimax_m3.json --max-turns 5
+"C:\Users\yg\.local\bin\claude.exe" "--settings" "C:\Users\yg\.ccc\profiles\minimax_m3.json" "--max-turns" 5
 ```
 
 ---
@@ -231,7 +230,7 @@ ccc **不做字段校验**——profile 文件就是 `--settings` 的内容,Clau
 ```json
 {
   "env": {
-    "ANTHROPIC_AUTH_TOKEN": "sk-cp-9AGdl9uW1gQNDhl0KzgyO8WLuM4WGniNSD_z21ZDNwSOTb44hgZTaK0I2p_9ku_qBOPuVlRC1yJl2TwGpfEh2_v5g0tf1oa0TpgEV-GBXpRyyelRGmBwNL4",
+    "ANTHROPIC_AUTH_TOKEN": "sk-cp-REDACTED-EXAMPLE",
     "ANTHROPIC_BASE_URL": "https://api.minimaxi.com/anthropic",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": "MiniMax-M3",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "MiniMax-M3-highspeed",
@@ -270,7 +269,7 @@ EOF
 # 2. 看命令对不对(不实际启动)
 ccc which minimax_m3
 # 输出:
-# claude --settings C:\Users\yg\.ccc\profiles\minimax_m3.json
+# "C:\Users\yg\.local\bin\claude.exe" "--settings" "C:\Users\yg\.ccc\profiles\minimax_m3.json"
 
 # 3. 进交互
 ccc minimax_m3
