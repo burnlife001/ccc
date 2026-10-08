@@ -54,10 +54,11 @@ func Dispatch(args []string) int {
 }
 
 // runOrExit 是错误处理统一出口:错误则打印并返回非零 code。
-// main 据此 os.Exit。
+// 错误消息按惯例:用户输入类错误在源站已带 "ccc: " 前缀,系统类错误不带;
+// 这里原样打印,不再二次前缀,避免 "ccc: ccc: ..."。
 func runOrExit(fn func() error) int {
 	if err := fn(); err != nil {
-		fmt.Fprintln(os.Stderr, "ccc:", err)
+		fmt.Fprintln(os.Stderr, err)
 		if errors.Is(err, ErrProfileNotFound) {
 			return 3
 		}
@@ -119,7 +120,7 @@ func cmdAdd(name string) int {
 			var ans string
 			_, _ = fmt.Scanln(&ans)
 			if !strings.EqualFold(ans, "y") {
-				return fmt.Errorf("aborted")
+				return fmt.Errorf("ccc: aborted")
 			}
 		}
 
@@ -219,7 +220,7 @@ func cmdProfile(args []string) int {
 
 	p, err := resolveProfile(profile)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "ccc:", err)
+		fmt.Fprintln(os.Stderr, err)
 		if errors.Is(err, ErrProfileNotFound) {
 			return 3
 		}
@@ -230,7 +231,7 @@ func cmdProfile(args []string) int {
 	// 检测 -p / --prompt 以决定 headless
 	headless, promptIdx, promptErr := detectPrompt(rest)
 	if promptErr != nil {
-		fmt.Fprintln(os.Stderr, "ccc:", promptErr)
+		fmt.Fprintln(os.Stderr, promptErr)
 		return 2
 	}
 	// continue 模式强制 headless
@@ -316,7 +317,7 @@ func detectPrompt(args []string) (headless bool, idx int, err error) {
 	for i, a := range args {
 		if a == "-p" || a == "--prompt" {
 			if i+1 >= len(args) {
-				return false, -1, fmt.Errorf("flag %q requires a value", a)
+				return false, -1, fmt.Errorf("ccc: flag %q requires a value", a)
 			}
 			return true, i, nil
 		}
