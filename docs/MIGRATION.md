@@ -59,8 +59,8 @@ ls ~/.ccc/profiles/
 ```bash
 git clone https://github.com/burnlife001/ccc.git
 cd ccc
-./build.ps1      # 自动编译并安装到 D:\Programs\ccc\
-ccc version      # 应该看到 ccc x.y.z
+./build.ps1              # 编译到 dst/ccc.exe(不安装、不改 PATH)
+./dst/ccc.exe version    # 应该看到 ccc x.y.z
 ```
 
 详见 [readme.md](../readme.md#安装)。

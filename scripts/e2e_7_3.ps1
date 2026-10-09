@@ -13,7 +13,9 @@
 #   - claude.exe 残留数(必须为 0)
 
 $ErrorActionPreference = "Stop"
-$CCC = "D:/Programs/ccc/ccc.exe"
+$RepoRoot = Split-Path $PSScriptRoot -Parent
+$CCC = Join-Path $RepoRoot "dst/ccc.exe"
+if (-not (Test-Path $CCC)) { throw "ccc.exe not found: $CCC (run ./build.ps1 first)" }
 $PROFILE = "minimax_m3"
 $PROMPT = "回复OK两个字"
 $RUNS = 50

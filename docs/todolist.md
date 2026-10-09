@@ -15,7 +15,7 @@
   ├── profiles.go    # profile 增删查（纯文件操作）
   └── paths.go       # 路径常量集中
   ```
-- [ ] `build.ps1`：`go build -ldflags "-s -w" -o ccc.exe`，复制到 `D:/Programs/ccc/`，加 PATH
+- [ ] `build.ps1`：`go build -ldflags "-s -w" -o dst/ccc.exe ./src`(单 exe 约 2.5 MB,不安装、不改 PATH)
 - [ ] 验证：`ccc version` 输出版本号；exe 体积 <10MB
 
 ## Phase 1 — 核心透传（MVP，最先交付）

@@ -50,20 +50,16 @@
 git clone https://github.com/burnlife001/ccc.git
 cd ccc
 
-# 2. 编译(脚本里会 go build + 复制到 D:/Programs/ccc/ + 加 PATH)
+# 2. 编译(产物在 dst/,单 exe 约 2.5 MB,不安装、不改 PATH)
 ./build.ps1
 
 # 3. 验证
-ccc version
+./dst/ccc.exe version
 ```
 
-`build.ps1` 做了什么:
+`build.ps1` 只做一件事:`go build -ldflags "-s -w" -o dst/ccc.exe ./src`。
 
-1. `go build -ldflags "-s -w" -o dst/ccc.exe ./src`(产出 < 10 MB 的单 exe)
-2. 复制到 `D:\Programs\ccc\ccc.exe`
-3. 把 `D:\Programs\ccc\` 加进 PATH(如果还没加)
-
-> 装好后**新开一个终端**才能 `ccc` 直接跑。不想加 PATH?直接用 `D:\Programs\ccc\ccc.exe <args>` 全路径也行。
+想在任意目录直接敲 `ccc`,自己把 `dst/` 加进 PATH 或做个软链即可,脚本不代劳。
 
 ---
 
@@ -286,9 +282,9 @@ ccc minimax_m3 -p "只回 OK"
 
 ### `ccc` 不被识别?
 
-PATH 里没 `D:\Programs\ccc\`。两种解决:
-1. 重开终端(`build.ps1` 加的 PATH 只对新进程生效)
-2. 手动加:系统属性 → 高级 → 环境变量 → `Path` → 新建 → `D:\Programs\ccc`
+ccc 不安装、不改 PATH,产物就是仓库里的 `dst/ccc.exe`。两种解决:
+1. 用全路径或相对路径调用,如 `./dst/ccc.exe version`
+2. 自己把 `dst/` 加进 PATH(系统属性 → 高级 → 环境变量 → `Path` → 新建)
 
 ### `profile not found: xxx`
 
@@ -336,7 +332,7 @@ ccc/
 │   ├── todolist.md        # 阶段开发计划
 │   ├── MIGRATION.md       # 旧版 ccs → ccc 迁移指南
 │   └── ccs-lite-reference/  # TypeScript 旧版关键源
-├── build.ps1      # go build + 安装到 D:\Programs\ccc
+├── build.ps1      # go build ./src → dst/ccc.exe(不安装)
 └── readme.md      # 本文件
 ```
 
