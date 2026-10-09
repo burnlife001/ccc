@@ -36,7 +36,7 @@ The Go source tree will live one level up at `E:/__work/__github/ccc/` (sibling 
 
 ## Build, install, verify
 
-- Build: `go build -ldflags "-s -w" -o ccc.exe` (via planned `build.ps1`), install to `D:/Programs/ccc/` and add to PATH. Target: single exe < 10 MB, exit code 0 on `ccc version`.
+- Build: `go build -ldflags "-s -w" -o dst/ccc.exe ./src` (via `build.ps1`), install to `D:/Programs/ccc/` and add to PATH. Target: single exe < 10 MB, exit code 0 on `ccc version`. Go sources live in `src/`; build artifacts land in `dst/`.
 - Verification is **acceptance-driven**, not test-suite-driven: execute the operations in `ccs验收标准.md` and record operation → expected → evidence. Unit tests (table-driven, per `go架构规范.md` §6) are auxiliary; `exec.go` is tested via its pure argument-assembly function, never real spawns.
 - Test environment expectations: Windows 11, both pwsh and git-bash; `claude` CLI available; `~/.ccc/profiles/minimax_m3.json` pre-populated from the template with a real token.
 

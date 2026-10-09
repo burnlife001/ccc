@@ -1,8 +1,8 @@
-# build.ps1 — build ccc.exe and install to D:/Programs/ccc/
+# build.ps1 — build dst/ccc.exe from src/ and install to D:/Programs/ccc/
 #
 # 用法：在仓库根目录执行 `pwsh ./build.ps1`
 # 行为：
-#   1) go build -ldflags "-s -w -X main.version=0.1.0" -o ccc.exe
+#   1) go build -ldflags "-s -w -X main.version=0.1.0" -o dst/ccc.exe ./src
 #      剥离符号表、压小体积、注入语义化版本号（覆盖 paths.go 里的默认 0.1.0-dev）
 #   2) 拷贝到 D:/Programs/ccc/ccc.exe
 #   3) 如用户 PATH 不含该目录，自动追加到 User 级 PATH（重启 shell 生效）
@@ -14,6 +14,7 @@ $ErrorActionPreference = 'Stop'
 $RepoRoot = $PSScriptRoot
 $InstallDir = 'D:/Programs/ccc'
 $ExeName = 'ccc.exe'
+$OutDir = 'dst'
 $Version = '0.1.0'
 
 Push-Location $RepoRoot
@@ -25,15 +26,17 @@ try {
     $env:GOCACHE = $cacheRoot
     $env:GOMODCACHE = (Join-Path $env:USERPROFILE 'go/pkg/mod')
 
-    Write-Host "[build] go build -ldflags -s -w -X main.version=$Version -o $ExeName"
-    go build -ldflags "-s -w -X main.version=$Version" -o $ExeName
+    if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Force -Path $OutDir | Out-Null }
+    $outExe = Join-Path $OutDir $ExeName
+    Write-Host "[build] go build -ldflags -s -w -X main.version=$Version -o $outExe ./src"
+    go build -ldflags "-s -w -X main.version=$Version" -o $outExe ./src
     if ($LASTEXITCODE -ne 0) { throw "go build failed (exit $LASTEXITCODE)" }
 
     if (-not (Test-Path $InstallDir)) {
         Write-Host "[install] creating $InstallDir"
         New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
     }
-    Copy-Item -Force $ExeName (Join-Path $InstallDir $ExeName)
+    Copy-Item -Force $outExe (Join-Path $InstallDir $ExeName)
     Write-Host "[install] copied to $InstallDir/$ExeName"
 
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')

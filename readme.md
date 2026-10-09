@@ -59,7 +59,7 @@ ccc version
 
 `build.ps1` 做了什么:
 
-1. `go build -ldflags "-s -w" -o ccc.exe`(产出 < 10 MB 的单 exe)
+1. `go build -ldflags "-s -w" -o dst/ccc.exe ./src`(产出 < 10 MB 的单 exe)
 2. 复制到 `D:\Programs\ccc\ccc.exe`
 3. 把 `D:\Programs\ccc\` 加进 PATH(如果还没加)
 
@@ -322,11 +322,14 @@ PATH 里没 `D:\Programs\ccc\`。两种解决:
 
 ```
 ccc/
-├── main.go        # 唯一入口:错误处理 + 退出码
-├── cli.go         # 命令分发:7 个子命令 + 透传分支
-├── exec.go        # 唯一允许 exec.Command 的文件
-├── profiles.go    # profile 文件读写(纯文件操作)
-├── paths.go       # 路径常量集中
+├── src/
+│   ├── main.go        # 唯一入口:错误处理 + 退出码
+│   ├── cli.go         # 命令分发:7 个子命令 + 透传分支
+│   ├── exec.go        # 唯一允许 exec.Command 的文件
+│   ├── profiles.go    # profile 文件读写(纯文件操作)
+│   └── paths.go       # 路径常量集中
+├── dst/
+│   └── ccc.exe      # 构建产物(build.ps1 生成)
 ├── docs/
 │   ├── go架构规范.md      # 架构契约(为什么这么写)
 │   ├── ccs验收标准.md     # 完整验收矩阵
