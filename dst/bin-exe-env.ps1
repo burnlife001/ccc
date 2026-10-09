@@ -1,13 +1,7 @@
-# Search for 'bin' directories under script root and add selected one to User or System PATH
+# Search for 'bin' directories under script root and add selected one to User PATH
 # Also link/remove exe(s) found under script root as symlinks in ~/local/bin
 
 $ErrorActionPreference = 'Stop'
-
-function Test-Admin {
-    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
-    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-}
 
 function Show-Menu {
     Clear-Host
@@ -15,16 +9,15 @@ function Show-Menu {
     Write-Host "         Add to PATH" -ForegroundColor Cyan
     Write-Host "======================================" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "  [1] Add bin directory to User   PATH"
-    Write-Host "  [2] Add bin directory to System PATH (Admin)"
-    Write-Host "  [3] Add current directory to User PATH"
-    Write-Host "  [4] Link exe(s) to ~/local/bin"
-    Write-Host "  [5] Remove exe link(s) from ~/local/bin"
+    Write-Host "  [1] Add bin directory to User PATH"
+    Write-Host "  [2] Add current directory to User PATH"
+    Write-Host "  [3] Link exe(s) to ~/local/bin"
+    Write-Host "  [4] Remove exe link(s) from ~/local/bin"
     Write-Host "  [0] Exit"
     Write-Host ""
 }
 
-# Resolve the ~/local/bin directory (created on demand by the link items)
+# Resolve the ~/local/bin directory (created on demand by the link item)
 function Get-LocalBinDir {
     return (Join-Path $env:USERPROFILE 'local\bin')
 }
@@ -59,11 +52,11 @@ function Select-FromList {
     return $Items[[int]$sel]
 }
 
-# Append a directory to the PATH of a scope; reports whether it was added
+# Append a directory to the User PATH; reports whether it was added
 function Add-PathEntry {
-    param([string]$Dir, [string]$Scope)
+    param([string]$Dir)
 
-    $currentPath = [Environment]::GetEnvironmentVariable("PATH", $Scope)
+    $currentPath = [Environment]::GetEnvironmentVariable("PATH", 'User')
     $entries = @()
     if ($currentPath) {
         $entries = $currentPath -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
@@ -72,7 +65,7 @@ function Add-PathEntry {
     # Case-insensitive duplicate check
     $alreadyThere = $entries | Where-Object { $_ -ieq $Dir }
     if ($alreadyThere) {
-        Write-Host "`nThe path is already present in the ${Scope} PATH." -ForegroundColor Yellow
+        Write-Host "`nThe path is already present in the User PATH." -ForegroundColor Yellow
         return $false
     }
 
@@ -83,19 +76,14 @@ function Add-PathEntry {
     }
 
     try {
-        [Environment]::SetEnvironmentVariable("PATH", $newPath, $Scope)
-        Write-Host "`nSuccessfully added to ${Scope} PATH:" -ForegroundColor Green
+        [Environment]::SetEnvironmentVariable("PATH", $newPath, 'User')
+        Write-Host "`nSuccessfully added to User PATH:" -ForegroundColor Green
         Write-Host "  $Dir" -ForegroundColor Green
-
-        if ($Scope -eq 'Machine') {
-            Write-Host "`nNote: Restart your terminal for the system PATH change to take effect." -ForegroundColor Yellow
-        } else {
-            Write-Host "`nNote: Restart your terminal or run the following for this session:" -ForegroundColor Yellow
-            Write-Host "  `$env:PATH += `";$Dir`"" -ForegroundColor Yellow
-        }
+        Write-Host "`nNote: Restart your terminal or run the following for this session:" -ForegroundColor Yellow
+        Write-Host "  `$env:PATH += `";$Dir`"" -ForegroundColor Yellow
         return $true
     } catch {
-        Write-Host "`nFailed to update ${Scope} PATH!" -ForegroundColor Red
+        Write-Host "`nFailed to update User PATH!" -ForegroundColor Red
         Write-Host $_.Exception.Message -ForegroundColor Red
         Pause
         exit 1
@@ -147,24 +135,14 @@ switch ($choice) {
         exit 0
     }
     '1' {
-        $targetScope = 'User'
     }
     '2' {
-        $targetScope = 'Machine'
-        if (-not (Test-Admin)) {
-            Write-Host "Administrator privileges required. Requesting elevation..." -ForegroundColor Yellow
-            Start-Process pwsh -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
-            exit
-        }
-    }
-    '3' {
-        $targetScope = 'User'
         $addCurrentDir = $true
     }
-    '4' {
+    '3' {
         $linkMode = $true
     }
-    '5' {
+    '4' {
         $unlinkMode = $true
     }
     default {
@@ -201,7 +179,7 @@ if ($linkMode -or $unlinkMode) {
 
         Write-Host "`n$done / $($exes.Count) link(s) ready in $localBin" -ForegroundColor Green
         # A link dir that is not on PATH is useless - make it reachable
-        Add-PathEntry -Dir $localBin -Scope 'User' | Out-Null
+        Add-PathEntry -Dir $localBin | Out-Null
     } else {
         Write-Host "`nLink directory: $localBin" -ForegroundColor Cyan
         if (-not (Test-Path -LiteralPath $localBin)) {
@@ -266,5 +244,5 @@ if ($addCurrentDir) {
     $targetPath = Select-FromList -Items $binDirs -Prompt "Enter selection number"
 }
 
-Add-PathEntry -Dir $targetPath -Scope $targetScope | Out-Null
+Add-PathEntry -Dir $targetPath | Out-Null
 Pause
