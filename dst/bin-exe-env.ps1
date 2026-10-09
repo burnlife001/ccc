@@ -11,15 +11,15 @@ function Show-Menu {
     Write-Host ""
     Write-Host "  [1] Add bin directory to User PATH"
     Write-Host "  [2] Add current directory to User PATH"
-    Write-Host "  [3] Link exe(s) to ~/local/bin"
-    Write-Host "  [4] Remove exe link(s) from ~/local/bin"
+    Write-Host "  [3] Link exe(s) to ~/.local/bin"
+    Write-Host "  [4] Remove exe link(s) from ~/.local/bin"
     Write-Host "  [0] Exit"
     Write-Host ""
 }
 
-# Resolve the ~/local/bin directory (created on demand by the link item)
+# Resolve the ~/.local/bin directory (created on demand by the link item)
 function Get-LocalBinDir {
-    return (Join-Path $env:USERPROFILE 'local\bin')
+    return (Join-Path $env:USERPROFILE '.local\bin')
 }
 
 # Scan for exe files under a root, return full paths (depth-limited to skip deep trees)
