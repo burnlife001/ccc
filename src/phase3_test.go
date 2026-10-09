@@ -101,7 +101,7 @@ func TestParseStreamJSON(t *testing.T) {
 // ----- saveSession / loadSession -----
 
 func TestSessionRoundtrip(t *testing.T) {
-	// 用临时 HOME 隔离 ~/.ccc,避免污染真实数据
+	// 用 CCC_HOME 指向临时目录,隔离 .ccc,避免污染真实数据
 	tmpHome := t.TempDir()
 	t.Setenv("CCC_HOME", tmpHome)
 

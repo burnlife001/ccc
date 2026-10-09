@@ -43,3 +43,7 @@ Thumbs.db
 # TypeScript 参考源保留
 # ccs-lite-reference/ 正常入仓
 docs/**/*.tmp
+
+# ===== dst/.ccc/ —— 运行时数据,含真实 token,永不入库 =====
+# (YG-8 教训:profile json 里是明文 ANTHROPIC_AUTH_TOKEN)
+dst/.ccc/

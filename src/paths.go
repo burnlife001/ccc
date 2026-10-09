@@ -12,20 +12,23 @@ import (
 // 默认值仅在 `go run` 场景下生效,build.ps1 会覆盖。
 var version = "0.1.0-dev"
 
-func homeDir() string {
+// baseDir 返回 .ccc 数据目录的父目录。
+// 默认 = ccc.exe 所在目录(即 dst/,数据与 exe 同生命期、可整体搬运);
+// CCC_HOME 环境变量可覆盖——仅作测试隔离钩子,正常使用不要设。
+func baseDir() string {
 	if h := os.Getenv("CCC_HOME"); h != "" {
 		return h
 	}
-	home, err := os.UserHomeDir()
-	if err != nil || home == "" {
+	exe, err := os.Executable()
+	if err != nil || exe == "" {
 		// fallback:尽量不要发生;若发生,用当前目录,不 panic。
 		return "."
 	}
-	return home
+	return filepath.Dir(exe)
 }
 
 func cccDir() string {
-	return filepath.Join(homeDir(), ".ccc")
+	return filepath.Join(baseDir(), ".ccc")
 }
 
 func profilesDir() string {
@@ -36,18 +39,13 @@ func sessionsFile() string {
 	return filepath.Join(cccDir(), "sessions.json")
 }
 
-func installDir() string {
-	// 默认安装目录;build.ps1 用此路径。
-	return `D:\Programs\ccc`
-}
-
-// profilePath 返回 ~/.ccc/profiles/<name>.json。
+// profilePath 返回 <exe>/.ccc/profiles/<name>.json。
 // cli / profiles 业务代码都从这里取,不在别处拼路径。
 func profilePath(name string) string {
 	return filepath.Join(profilesDir(), name+".json")
 }
 
-// ensureCccDirs 一次性创建 ~/.ccc 和 ~/.ccc/profiles。
+// ensureCccDirs 一次性创建 .ccc 和 .ccc/profiles。
 // 已存在不报错。
 func ensureCccDirs() error {
 	for _, d := range []string{cccDir(), profilesDir()} {

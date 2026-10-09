@@ -3,7 +3,7 @@
 > 验收对象：Go 单 exe 版 ccc（见 `todolist.md`）。
 > 验收方法：每条标准给出「操作 → 预期结果 → 证据」。所有命令在 Windows 11 + pwsh/git-bash 下执行。
 > 判定规则：P0 全部通过 = 可交付；P1 全部通过 = 可替换旧 ccs；P2 通过 = 加分项。
-> 验收前准备：`claude --version` 可用；`~/.ccc/profiles/` 下已有 `minimax_m3.json`（内容同 `reference/settings_minimax_m3.template.json`，token 已填）。
+> 验收前准备：`claude --version` 可用；`dst/.ccc/profiles/`（与 ccc.exe 同级）下已有 `minimax_m3.json`（内容同 `reference/settings_minimax_m3.template.json`，token 已填）。
 
 ## P0 — 核心透传（不通过则整体不合格）
 
@@ -12,7 +12,7 @@
 | # | 操作 | 预期结果 | 证据 |
 |---|---|---|---|
 | 1.1 | 运行 build.ps1 后 `ccc version` | 输出语义化版本号（如 `ccc 0.1.0`），exit code 0 | 终端截图/复制输出 |
-| 1.2 | 查看 `D:\Programs\ccc\ccc.exe` | 单文件存在，体积 < 10 MB，无伴随 dll/runtime 目录 | 文件属性 |
+| 1.2 | 查看 `dst/ccc.exe` | 单文件存在，体积 < 10 MB，无伴随 dll/runtime 目录 | 文件属性 |
 | 1.3 | 双击/直接运行 exe（无参数） | 打印用法说明 + exit code 非 0，不 panic | 终端输出 |
 | 1.4 | `ccc <不存在的profile>` | 明确报错 `profile not found: xxx` + 提示可用列表，exit code 非 0 | 终端输出 |
 
@@ -46,7 +46,7 @@
 | # | 操作 | 预期结果 | 证据 |
 |---|---|---|---|
 | 5.1 | `ccc list` | 列出 profiles 目录全部 json（含 minimax_m3），格式 `名称 → 文件路径` | 终端输出 |
-| 5.2 | `ccc add test_p`（交互输入 base_url/token/model） | 生成 `~/.ccc/profiles/test_p.json`；文件是合法 JSON；token 落盘；再次 `list` 可见 | 文件内容 + list 输出 |
+| 5.2 | `ccc add test_p`（交互输入 base_url/token/model） | 生成 `dst/.ccc/profiles/test_p.json`；文件是合法 JSON；token 落盘；再次 `list` 可见 | 文件内容 + list 输出 |
 | 5.3 | `ccc which test_p` 并实际启动 | 路由到 add 时填入的 base_url（`/status` 核对） | /status 输出 |
 | 5.4 | `ccc rm test_p` | 文件删除，`list` 不再出现；对不存在的 profile 报 `not found` 而非 panic | 终端输出 |
 | 5.5 | profile json 含语法错误时 `ccc badprofile` | 明确报错并指出文件路径，exit code 非 0 | 终端输出 |
@@ -65,7 +65,7 @@
 
 | # | 操作 | 预期结果 | 证据 |
 |---|---|---|---|
-| 7.1 | 把 `~/.ccs/settings_minimax_m3.json` 移入 `~/.ccc/profiles/` 后 `ccc minimax_m3 -p "OK?"` | 旧数据零改动直接可用 | 终端输出 |
+| 7.1 | 把 `~/.ccs/settings_minimax_m3.json` 移入 `dst/.ccc/profiles/` 后 `ccc minimax_m3 -p "OK?"` | 旧数据零改动直接可用 | 终端输出 |
 | 7.2 | readme.md | 含：安装步骤、`list/add/rm/which/<profile>/<profile>:continue` 六个命令、profile json 字段表、一个完整示例 | 文件审查 |
 | 7.3 | 连续执行 6.1 五十次（简单循环） | 无句柄/进程泄漏，全部 exit code 0 | 循环脚本输出 |
 

@@ -61,22 +61,37 @@ cd ccc
 
 想在任意目录直接敲 `ccc`,自己把 `dst/` 加进 PATH 或做个软链即可,脚本不代劳。
 
+### 数据目录在哪
+
+**与 ccc.exe 同级的 `.ccc/`**——本仓库即 `dst/.ccc/`:
+
+```
+dst/
+├── ccc.exe
+└── .ccc/
+    ├── profiles/<name>.json   # profile 文件
+    └── sessions.json          # :continue 用的 session_id
+```
+
+exe 和数据同生命期,整个 `dst/` 目录拷走即可搬运。`dst/.ccc/` 已在 `.gitignore`(里面是明文 token,永不入库)。
+测试要隔离数据时设 `CCC_HOME=<目录>`,`.ccc/` 就会落到那个目录下。
+
 ---
 
 ## 快速开始
 
-把最小化的 profile 文件丢到 `~/.ccc/profiles/` 就能用。
+把最小化的 profile 文件丢到 `dst/.ccc/profiles/` 就能用。
 
 ```bash
 # 假设你已经有 ~/.ccs/settings_minimax_m3.json(从旧版 ccs 复制过来)
-mkdir -p ~/.ccc/profiles
-cp ~/.ccs/settings_minimax_m3.json ~/.ccc/profiles/minimax_m3.json
+mkdir -p dst/.ccc/profiles
+cp ~/.ccs/settings_minimax_m3.json dst/.ccc/profiles/minimax_m3.json
 
 # 启动交互式会话
-ccc minimax_m3
+./dst/ccc.exe minimax_m3
 
 # 一句话任务
-ccc minimax_m3 -p "你好"
+./dst/ccc.exe minimax_m3 -p "你好"
 ```
 
 不熟 profile 文件长啥样?往下翻到 [完整示例](#完整示例)。
@@ -104,7 +119,7 @@ ccc version             # 输出版本号
 ccc minimax_m3
 ```
 
-- 找到 `~/.ccc/profiles/minimax_m3.json` → 校验"存在 + 合法 JSON"
+- 找到 `dst/.ccc/profiles/minimax_m3.json` → 校验"存在 + 合法 JSON"
 - 拼出 `claude --settings <绝对路径> [你传的任何参数...]`
 - spawn 前**剥掉**父进程所有 `ANTHROPIC_*` 环境变量(防嵌套污染)
 - stdio 全部 inherit(支持 `echo 测试 | ccc minimax_m3`)
@@ -117,7 +132,7 @@ ccc minimax_m3 -p "回复 OK 两个字"
 ```
 
 - 同上,但走 stream-json 输出路径
-- 内部捕获 `session_id` 存到 `~/.ccc/sessions.json`(键是 profile 名),给下次 `:continue` 用
+- 内部捕获 `session_id` 存到 `dst/.ccc/sessions.json`(键是 profile 名),给下次 `:continue` 用
 - 输出为纯文本(已剥 stream-json 信封),`exit code 0` 即成功
 
 #### 3. `ccc <profile>:continue` — 续接上次会话
@@ -126,7 +141,7 @@ ccc minimax_m3 -p "回复 OK 两个字"
 ccc minimax_m3:continue -p "我刚才让你记的数字?"
 ```
 
-- 从 `~/.ccc/sessions.json` 读出 profile 对应的 `session_id`
+- 从 `dst/.ccc/sessions.json` 读出 profile 对应的 `session_id`
 - 没有 session_id?明确报错 `ccc: no previous session for profile "<name>"; run \`ccc <name> -p "task"\` first`,exit code ≠ 0
 - 拼 `--resume <sessionId>` 透传给 claude
 
@@ -139,8 +154,8 @@ ccc list
 输出:
 
 ```
-minimax_m3 → C:\Users\yg\.ccc\profiles\minimax_m3.json
-test_p     → C:\Users\yg\.ccc\profiles\test_p.json
+minimax_m3 → E:\__work\__github\ccc\dst\.ccc\profiles\minimax_m3.json
+test_p     → E:\__work\__github\ccc\dst\.ccc\profiles\test_p.json
 ```
 
 #### 5. `ccc add <name>`
@@ -155,7 +170,7 @@ ccc add my_gpt
 2. `token`(留空 = 依次从 `$ANTHROPIC_AUTH_TOKEN` / `$ANTHROPIC_API_KEY` 环境变量读)
 3. `model`(默认 `MiniMax-M3`)
 
-生成 `~/.ccc/profiles/my_gpt.json`(模板见 [完整示例](#完整示例))。
+生成 `dst/.ccc/profiles/my_gpt.json`(模板见 [完整示例](#完整示例))。
 
 #### 6. `ccc rm <name>`
 
@@ -163,7 +178,7 @@ ccc add my_gpt
 ccc rm test_p
 ```
 
-- 删 `~/.ccc/profiles/test_p.json`
+- 删 `dst/.ccc/profiles/test_p.json`
 - 不存在 → 报错 `profile not found: test_p`,exit code ≠ 0,不删错文件
 
 #### 7. `ccc which <profile>` — 调试利器
@@ -175,7 +190,7 @@ ccc which minimax_m3
 输出完整命令行,**路径全是绝对路径**(无 `~`、无相对路径):
 
 ```
-"C:\Users\yg\.local\bin\claude.exe" "--settings" "C:\Users\yg\.ccc\profiles\minimax_m3.json"
+"C:\Users\yg\.local\bin\claude.exe" "--settings" "E:\__work\__github\ccc\dst\.ccc\profiles\minimax_m3.json"
 ```
 
 支持透传参数:
@@ -187,7 +202,7 @@ ccc which minimax_m3 --max-turns 5
 →
 
 ```
-"C:\Users\yg\.local\bin\claude.exe" "--settings" "C:\Users\yg\.ccc\profiles\minimax_m3.json" "--max-turns" 5
+"C:\Users\yg\.local\bin\claude.exe" "--settings" "E:\__work\__github\ccc\dst\.ccc\profiles\minimax_m3.json" "--max-turns" 5
 ```
 
 ---
@@ -221,7 +236,7 @@ ccc **不做字段校验**——profile 文件就是 `--settings` 的内容,Clau
 
 ## 完整示例
 
-文件路径:`C:\Users\yg\.ccc\profiles\minimax_m3.json`
+文件路径:`E:\__work\__github\ccc\dst\.ccc\profiles\minimax_m3.json`
 
 ```json
 {
@@ -250,29 +265,29 @@ ccc **不做字段校验**——profile 文件就是 `--settings` 的内容,Clau
 
 > ⚠️ **安全**
 > - token 是明文 JSON,文件权限请自己管。Windows 上文件默认只对当前用户可读。
-> - 别把 profile 文件 commit 到公开仓库。
+> - profile 文件在 `dst/.ccc/` 下,该目录已整体进 `.gitignore`——但**别手动把它加回来**,也别把 profile 复制到仓库其它位置。
 > - 想用环境变量而不是落盘?删掉 `ANTHROPIC_AUTH_TOKEN` 那一行,Claude Code 会自己从 `ANTHROPIC_AUTH_TOKEN` 环境变量读——但 ccc spawn 前会**剥掉**父进程的这个变量,所以请走 Claude Code 自己识别的机制。
 
 完整使用流程:
 
 ```bash
 # 1. 把文件存好
-mkdir -p ~/.ccc/profiles
-cat > ~/.ccc/profiles/minimax_m3.json <<'EOF'
+mkdir -p dst/.ccc/profiles
+cat > dst/.ccc/profiles/minimax_m3.json <<'EOF'
 { ... 上面的内容 ... }
 EOF
 
 # 2. 看命令对不对(不实际启动)
-ccc which minimax_m3
+./dst/ccc.exe which minimax_m3
 # 输出:
-# "C:\Users\yg\.local\bin\claude.exe" "--settings" "C:\Users\yg\.ccc\profiles\minimax_m3.json"
+# "C:\Users\yg\.local\bin\claude.exe" "--settings" "E:\__work\__github\ccc\dst\.ccc\profiles\minimax_m3.json"
 
 # 3. 进交互
-ccc minimax_m3
+./dst/ccc.exe minimax_m3
 # 会话里 /status 应能看到 ANTHROPIC_BASE_URL=https://api.minimaxi.com/anthropic
 
 # 4. 单轮
-ccc minimax_m3 -p "只回 OK"
+./dst/ccc.exe minimax_m3 -p "只回 OK"
 # OK
 ```
 
@@ -288,7 +303,7 @@ ccc 不安装、不改 PATH,产物就是仓库里的 `dst/ccc.exe`。两种解�
 
 ### `profile not found: xxx`
 
-- 文件不存在于 `~/.ccc/profiles/xxx.json`
+- 文件不存在于 `dst/.ccc/profiles/xxx.json`(即与 ccc.exe 同级的 `.ccc/profiles/`)
 - 用 `ccc list` 看现有名字
 - 文件名大小写敏感(Windows 默认不敏感,但 ccc 走文件系统,会按你写的大小写存)
 
@@ -325,7 +340,8 @@ ccc/
 │   ├── profiles.go    # profile 文件读写(纯文件操作)
 │   └── paths.go       # 路径常量集中
 ├── dst/
-│   └── ccc.exe      # 构建产物(build.ps1 生成)
+│   ├── ccc.exe        # 构建产物(build.ps1 生成)
+│   └── .ccc/          # 运行时数据(profiles + sessions,gitignored)
 ├── docs/
 │   ├── go架构规范.md      # 架构契约(为什么这么写)
 │   ├── ccs验收标准.md     # 完整验收矩阵

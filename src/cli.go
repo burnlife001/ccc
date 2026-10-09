@@ -77,7 +77,7 @@ func cmdList() int {
 		}
 		if len(names) == 0 {
 			fmt.Fprintln(os.Stderr, "(no profiles installed)")
-			fmt.Fprintln(os.Stderr, "  bootstrap: copy ~/.ccs/settings_*.json → ~/.ccc/profiles/<name>.json")
+			fmt.Fprintln(os.Stderr, "  bootstrap: copy settings_*.json → "+profilesDir()+`\`)
 			fmt.Fprintln(os.Stderr, "  or:        ccs add <name>")
 			return nil
 		}
@@ -406,6 +406,6 @@ Usage:
   ccc version                             print version
   ccc help                                this message
 
-Profiles live in: ~/.ccc/profiles/<name>.json
-Sessions live in: ~/.ccc/sessions.json`)
+Profiles live in: `+profilesDir()+`\<name>.json  (与 ccc.exe 同级的 .ccc/)
+Sessions live in: `+sessionsFile())
 }

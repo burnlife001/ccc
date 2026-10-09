@@ -10,7 +10,7 @@ main.go        # 唯一入口：解析 os.Args → 调用内部包 → 统一处
 cli.go         # 命令分发：version/list/add/rm/which/<profile>/<profile>:continue
 exec.go        # 唯一允许 exec.Command 的文件：claude 查找、spawn、stdio 接线
 profiles.go    # profile 文件的读写（纯文件操作，无进程逻辑）
-paths.go       # 唯一允许计算路径的文件：~/.ccc、D:/Programs 等常量集中于此
+paths.go       # 唯一允许计算路径的文件：<exe>/.ccc 等常量集中于此
 ```
 
 - 依赖方向严格单向：`main → cli → {exec, profiles} → paths`。下层**禁止** import 上层，`exec` 与 `profiles` 互不 import。
@@ -32,7 +32,7 @@ paths.go       # 唯一允许计算路径的文件：~/.ccc、D:/Programs 等常
 
 - 路径只从 `paths.go` 的函数拿，**禁止**业务代码里出现 `filepath.Join(home, ...)` 字面量。
 - profile 文件内容不做字段校验（零转换透传是核心设计），只校验"文件存在 + 是合法 JSON"。
-- 不写注册表、不存绝对路径到配置文件；一切从 `~/.ccc` 运行时推导。
+- 不写注册表、不存绝对路径到配置文件；一切从 `<exe所在目录>/.ccc` 运行时推导（`os.Executable()`；`CCC_HOME` 环境变量仅作测试隔离钩子）。
 
 ## 5. 抽象纪律
 

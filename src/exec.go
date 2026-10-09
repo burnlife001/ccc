@@ -256,7 +256,7 @@ func isWindows() bool {
 	return os.PathSeparator == '\\' && os.PathListSeparator == ';'
 }
 
-// saveSession 写入 ~/.ccc/sessions.json { profileName: sessionID }。
+// saveSession 写入 <exe>/.ccc/sessions.json { profileName: sessionID }。
 // 目录不存在时创建。原子写入(写 .tmp 后 rename)。
 // 文件不存在或为空时初始化为 {};JSON 损坏时整体替换(止损)。
 func saveSession(profile, sessionID string) error {

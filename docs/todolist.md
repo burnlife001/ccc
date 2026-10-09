@@ -20,7 +20,7 @@
 
 ## Phase 1 — 核心透传（MVP，最先交付）
 
-- [ ] profile 解析：`~/.ccc/profiles/<name>.json` 存在即合法（文件内容 = settings 文件，不做字段校验）
+- [ ] profile 解析：`<exe同级>/.ccc/profiles/<name>.json` 存在即合法（文件内容 = settings 文件，不做字段校验）
 - [ ] `ccc <profile> [任意参数...]` → `claude --settings <profilePath> [参数...]`，`stdio` 全部 inherit
 - [ ] Windows shim 处理（**抄 `reference/shell-executor.ts` 的思路**）：claude 在 Windows 上是 `.cmd`/`.ps1`，需要 `cmd /c claude ...` 包裹或 PowerShell `-File` 分支
 - [ ] 环境清理：spawn 前剥掉父进程 `ANTHROPIC_*` 变量（防嵌套污染，见 `reference/shell-executor.ts` 的 strip 逻辑）
@@ -38,13 +38,13 @@
 ## Phase 3 — `-p` 与会话恢复
 
 - [ ] `ccc <profile> -p "任务"` → 同样透传 `claude -p "任务" --settings ...`（先不包装输出，原生输出即可读）
-- [ ] `ccc <profile>:continue` — `--output-format stream-json` 抓 `session_id` 存 `~/.ccc/sessions.json`，下次 `--resume <id>`（参考 `reference/headless-executor.ts` 的 spawn 参数组装）
+- [ ] `ccc <profile>:continue` — `--output-format stream-json` 抓 `session_id` 存 `<exe同级>/.ccc/sessions.json`，下次 `--resume <id>`（参考 `reference/headless-executor.ts` 的 spawn 参数组装）
 - [ ] 验证：`-p` 跑一个简单任务；continue 恢复同一上下文（问它上次结果能答出）
 
 ## Phase 4 — 收尾
 
 - [ ] readme.md（人用优先：安装、三个命令、profile json 字段说明）
-- [ ] 旧数据迁移：把 `~/.ccs/settings_minimax_m3.json` 等 symlink 直接复制/重指向到 `~/.ccc/profiles/`
+- [ ] 旧数据迁移：把 `~/.ccs/settings_minimax_m3.json` 等 symlink 直接复制/重指向到 `dst/.ccc/profiles/`（与 ccc.exe 同级）
 - [ ] 全局 CLAUDE.md 中的 `ccs <profile> -p` 示例更新为 `ccc`（如果正式切换）
 
 ## 从旧项目复制的参考资料

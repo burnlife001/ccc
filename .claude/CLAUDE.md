@@ -21,7 +21,7 @@ The Go source tree will live one level up at `E:/__work/__github/ccc/` (sibling 
 
 ## Core design decision (do not deviate)
 
-**A profile JSON file IS the `--settings` argument — zero transformation, byte-for-byte passthrough.** `ccc <profile> [args...]` spawns `claude --settings ~/.ccc/profiles/<name>.json [args...]` with stdio inherited and unknown flags appended verbatim. `exec.go` must not parse, validate fields of, or rewrite profile content — only check existence and JSON validity.
+**A profile JSON file IS the `--settings` argument — zero transformation, byte-for-byte passthrough.** `ccc <profile> [args...]` spawns `claude --settings <exeDir>/.ccc/profiles/<name>.json [args...]` with stdio inherited and unknown flags appended verbatim. `exec.go` must not parse, validate fields of, or rewrite profile content — only check existence and JSON validity.
 
 ## What to copy from `ccs-lite-reference/` (TypeScript)
 
@@ -29,7 +29,7 @@ The Go source tree will live one level up at `E:/__work/__github/ccc/` (sibling 
 |---|---|
 | `shell-executor.ts` | Three-branch Windows spawn (direct exe / `.ps1` via `powershell.exe -File` / `.cmd` via `cmd /c`) and `stripAnthropicEnv` (drop all parent `ANTHROPIC_*` before spawn so profile settings win) |
 | `settings-flow.ts` (414–433) | `--settings <path>` argument assembly and verbatim user-arg passthrough |
-| `headless-executor.ts` (295–333) | `-p` mode command line: `--output-format stream-json --verbose`, optional `--permission-mode`, and session resume via `--resume <sessionId>`; `session_id` is captured from stream-json output and stored in `~/.ccc/sessions.json` |
+| `headless-executor.ts` (295–333) | `-p` mode command line: `--output-format stream-json --verbose`, optional `--permission-mode`, and session resume via `--resume <sessionId>`; `session_id` is captured from stream-json output and stored in `<exeDir>/.ccc/sessions.json` |
 | `delegation-handler.ts` | Dispatch order: `<profile>:continue` → `<profile>` → subcommands; unknown flags pass through untouched |
 | `ccs.ts` | Entry dispatch order: `profile` / `profile:continue` / subcommand (`version`/`list`/`add`/`rm`/`which`) resolution |
 | `settings_minimax_m3.template.json` | The exact template `ccc add` generates |
@@ -38,9 +38,9 @@ The Go source tree will live one level up at `E:/__work/__github/ccc/` (sibling 
 
 - Build: `go build -ldflags "-s -w" -o dst/ccc.exe ./src` (via `build.ps1`). No install step, no PATH changes — the single exe (~2.5 MB) runs straight from `dst/`. Target: exit code 0 on `./dst/ccc.exe version`. Go sources live in `src/`; build artifacts land in `dst/`.
 - Verification is **acceptance-driven**, not test-suite-driven: execute the operations in `ccs验收标准.md` and record operation → expected → evidence. Unit tests (table-driven, per `go架构规范.md` §6) are auxiliary; `exec.go` is tested via its pure argument-assembly function, never real spawns.
-- Test environment expectations: Windows 11, both pwsh and git-bash; `claude` CLI available; `~/.ccc/profiles/minimax_m3.json` pre-populated from the template with a real token.
+- Test environment expectations: Windows 11, both pwsh and git-bash; `claude` CLI available; `dst/.ccc/profiles/minimax_m3.json` pre-populated from the template with a real token.
 
 ## Data locations
 
-- Profiles (runtime): `~/.ccc/profiles/<name>.json`; sessions: `~/.ccc/sessions.json` — both derived at runtime from the home dir, never persisted as absolute paths.
+- Profiles (runtime): `<exeDir>/.ccc/profiles/<name>.json`; sessions: `<exeDir>/.ccc/sessions.json` — **data dir sits next to ccc.exe** (i.e. `dst/.ccc/` in this repo), derived at runtime from `os.Executable()`, never persisted as absolute paths. `CCC_HOME` env var overrides the parent dir (test isolation hook only). `dst/.ccc/` is gitignored — it holds plaintext tokens.
 - Old tool's data for migration/verification: `C:/Users/yg/.ccs` and `E:/__work/__frequently/personal_data/apikey/decrypt/cc_switcher`.
