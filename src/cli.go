@@ -1,6 +1,6 @@
 package main
 
-// cli.go —— 命令分发:version/list/add/rm/which/<profile>/<profile>:continue。
+// cli.go —— 命令分发:version/list/which/<profile>/<profile>:continue。
 // 只组合 profiles/exec/paths 暴露的函数,不引入新逻辑。
 
 import (
@@ -11,9 +11,30 @@ import (
 	"strings"
 )
 
+// profileRef 是 resolveProfile 的返回:
+//   - Path:  给 --settings 用的绝对路径(本地 = 持久文件;kdbx = 临时文件)
+//   - Source: "local" / "kdbx"
+//   - TempPath: 仅 kdbx 源非空,用于 defer os.Remove
+type profileRef struct {
+	Path     string
+	Source   string // "local" | "kdbx"
+	TempPath string // kdbx 源时 = Path;本地源时为空
+}
+
+// cleanup 若 kdbx 源则删临时文件;本地源 no-op。
+// 错误吞掉(claude 退出后 temp 本来就会被 CleanupTempFiles 清)。
+func (r profileRef) cleanup() {
+	if r.TempPath != "" {
+		_ = os.Remove(r.TempPath)
+	}
+}
+
 // Dispatch 是 cli 的唯一对外入口。main 把 os.Args[1:] 传进来。
 // 返回 exit code:0 成功;非 0 失败。
 func Dispatch(args []string) int {
+	// 启动时清一次残留(应对上一次 claude 崩溃 / 进程被 kill)
+	CleanupTempFiles()
+
 	if len(args) == 0 {
 		printUsage(os.Stderr)
 		return 2
@@ -35,18 +56,6 @@ func Dispatch(args []string) int {
 			return 2
 		}
 		return cmdWhich(args[1], args[2:])
-	case "add":
-		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "ccc: usage: ccc add <name>")
-			return 2
-		}
-		return cmdAdd(args[1])
-	case "rm", "remove":
-		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "ccc: usage: ccc rm <name>")
-			return 2
-		}
-		return cmdRm(args[1])
 	}
 
 	// 默认:<profile> 或 <profile>:continue
@@ -56,8 +65,15 @@ func Dispatch(args []string) int {
 // runOrExit 是错误处理统一出口:错误则打印并返回非零 code。
 // 错误消息按惯例:用户输入类错误在源站已带 "ccc: " 前缀,系统类错误不带;
 // 这里原样打印,不再二次前缀,避免 "ccc: ccc: ..."。
+//
+// exitCodeErr: 透传 exit code(用于 headless 模式 spawn 透传 claude 退出码,
+// 避免直接 os.Exit 把外层 defer 跳过导致临时文件泄漏)。
 func runOrExit(fn func() error) int {
 	if err := fn(); err != nil {
+		var ec *exitCodeErr
+		if errors.As(err, &ec) {
+			return ec.Code
+		}
 		fmt.Fprintln(os.Stderr, err)
 		if errors.Is(err, ErrProfileNotFound) {
 			return 3
@@ -67,22 +83,87 @@ func runOrExit(fn func() error) int {
 	return 0
 }
 
+// exitCodeErr 包装非零退出码;runOrExit 据此透传而非打印。
+type exitCodeErr struct{ Code int }
+
+func (e *exitCodeErr) Error() string { return fmt.Sprintf("exit %d", e.Code) }
+
 // ----- 子命令实现 -----
+
+// listEntry 描述一条 profile 来源 + 名字 + 描述,供 cmdList 输出。
+type listEntry struct {
+	Name   string
+	Source string // "local" / "kdbx"
+	Desc   string // local = 绝对路径;kdbx = "kdbx:cc/<entry> (notes.profiles.<key>)"
+}
+
+// listEntries 双源合并,同名时 local 优先标 [override]。
+// kdbx 加载失败时返回 warn 字符串(由 cmdList 在末尾打到 stderr);
+// 出错不影响本地 profile 的展示。
+func listEntries() (entries []listEntry, kdbxWarn string) {
+	localSet := map[string]string{} // name → 绝对路径
+	for _, n := range mustListLocal() {
+		localSet[n] = profilePath(n)
+	}
+	kdbxSet := map[string]ProfileSource{} // name → 所在 entry
+	if _, sources, err := ListProfilesRich(); err != nil {
+		kdbxWarn = err.Error()
+	} else {
+		for _, s := range sources {
+			kdbxSet[s.Name] = s
+		}
+	}
+
+	seen := map[string]bool{}
+	var out []listEntry
+
+	// 先本地(含 override)
+	for n, path := range localSet {
+		seen[n] = true
+		e := listEntry{Name: n, Source: "local", Desc: path}
+		if _, ok := kdbxSet[n]; ok {
+			e.Source = "override"
+			e.Desc = path + " (shadows kdbx:" + kdbxGroup() + "/" + kdbxSet[n].EntryTitle + ")"
+		}
+		out = append(out, e)
+	}
+	// 再 kdbx 中独有
+	for name, src := range kdbxSet {
+		if seen[name] {
+			continue
+		}
+		out = append(out, listEntry{
+			Name:   name,
+			Source: "kdbx",
+			Desc:   "kdbx:" + kdbxGroup() + "/" + src.EntryTitle + " (notes.profiles." + name + ")",
+		})
+	}
+	// 字母序
+	for i := 1; i < len(out); i++ {
+		for j := i; j > 0 && out[j-1].Name > out[j].Name; j-- {
+			out[j-1], out[j] = out[j], out[j-1]
+		}
+	}
+	return out, kdbxWarn
+}
 
 func cmdList() int {
 	return runOrExit(func() error {
-		names, err := listProfileNames()
-		if err != nil {
-			return err
-		}
-		if len(names) == 0 {
+		entries, kdbxWarn := listEntries()
+		if len(entries) == 0 {
 			fmt.Fprintln(os.Stderr, "(no profiles installed)")
 			fmt.Fprintln(os.Stderr, "  bootstrap: copy settings_*.json → "+profilesDir()+`\`)
-			fmt.Fprintln(os.Stderr, "  or:        ccs add <name>")
+			fmt.Fprintln(os.Stderr, "  or:        drop a settings_*.json into "+profilesDir()+`  /  edit kdbx group `+kdbxGroup())
+			if kdbxWarn != "" {
+				fmt.Fprintln(os.Stderr, "  kdbx warn: "+kdbxWarn)
+			}
 			return nil
 		}
-		for _, n := range names {
-			fmt.Printf("%s → %s\n", n, profilePath(n))
+		for _, e := range entries {
+			fmt.Printf("[%s] %s\n", e.Source, e.Name)
+		}
+		if kdbxWarn != "" {
+			fmt.Fprintln(os.Stderr, "  kdbx warn: "+kdbxWarn)
 		}
 		return nil
 	})
@@ -90,115 +171,26 @@ func cmdList() int {
 
 func cmdWhich(profile string, userArgs []string) int {
 	return runOrExit(func() error {
-		p, err := resolveProfile(profile)
+		ref, err := resolveProfile(profile)
 		if err != nil {
 			return err
 		}
+		// which 不留临时文件(claude 不跑);立刻清掉。
+		defer ref.cleanup()
+
 		resolve, prefix, err := findClaude()
 		if err != nil {
 			return err
 		}
 		args := assembleArgs(ExecOptions{
-			SettingsPath: p,
+			SettingsPath: ref.Path,
 			UserArgs:     userArgs,
 		})
+		// kdbx 源加 [kdbx] 标记
+		if ref.Source == "kdbx" {
+			fmt.Fprint(os.Stdout, "[kdbx] ")
+		}
 		printCommand(os.Stdout, resolve, prefix, args)
-		return nil
-	})
-}
-
-// cmdAdd 交互式生成 profile JSON:问 base_url / token / model,写入。
-// token 留空时从环境变量读(若有),否则写空字符串(由 claude 自己处理)。
-func cmdAdd(name string) int {
-	return runOrExit(func() error {
-		if err := validateProfileName(name); err != nil {
-			return err
-		}
-		// 已有则确认
-		if _, err := os.Stat(profilePath(name)); err == nil {
-			fmt.Fprintf(os.Stderr, "ccc: profile %q already exists; overwrite? [y/N]: ", name)
-			var ans string
-			_, _ = fmt.Scanln(&ans)
-			if !strings.EqualFold(ans, "y") {
-				return fmt.Errorf("ccc: aborted")
-			}
-		}
-
-		fmt.Printf("Adding profile %q\n", name)
-		fmt.Print("  base_url [https://api.minimaxi.com/anthropic]: ")
-		var baseURL string
-		_, _ = fmt.Scanln(&baseURL)
-		if baseURL == "" {
-			baseURL = "https://api.minimaxi.com/anthropic"
-		}
-		fmt.Print("  token (留空从环境变量读): ")
-		var token string
-		_, _ = fmt.Scanln(&token)
-		if token == "" {
-			if t := os.Getenv("ANTHROPIC_AUTH_TOKEN"); t != "" {
-				token = t
-				fmt.Println("  (using $ANTHROPIC_AUTH_TOKEN)")
-			} else if t := os.Getenv("ANTHROPIC_API_KEY"); t != "" {
-				token = t
-				fmt.Println("  (using $ANTHROPIC_API_KEY)")
-			}
-		}
-		fmt.Print("  model [MiniMax-M3]: ")
-		var model string
-		_, _ = fmt.Scanln(&model)
-		if model == "" {
-			model = "MiniMax-M3"
-		}
-
-		body := buildProfileJSON(baseURL, token, model)
-		if err := writeProfile(name, body); err != nil {
-			return err
-		}
-		fmt.Printf("✓ written %s\n", profilePath(name))
-		return nil
-	})
-}
-
-// buildProfileJSON 渲染一个 settings 文件 JSON;token 留空时字段省略。
-// 字段与 settings_minimax_m3.template.json 对齐(子集)。
-func buildProfileJSON(baseURL, token, model string) []byte {
-	const tpl = `{
-  "env": {
-%s
-    "ANTHROPIC_BASE_URL": %q,
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": %q,
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": %q,
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": %q,
-    "ANTHROPIC_MODEL": %q,
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-    "DISABLE_TELEMETRY": "1",
-    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
-    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "0",
-    "CLAUDE_CODE_USE_POWERSHELL_TOOL": "1",
-    "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "1000000",
-    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "500000"
-  },
-  "permissions": {
-    "defaultMode": "bypassPermissions",
-    "allow": ["Bash", "Edit", "MultiEdit", "Write", "Read", "Glob", "Grep", "LS", "WebFetch", "WebSearch", "Rm"]
-  },
-  "skipDangerousModePermissionPrompt": true
-}
-`
-	tokenLine := ""
-	if token != "" {
-		tokenLine = fmt.Sprintf("    \"ANTHROPIC_AUTH_TOKEN\": %q,\n", token)
-	}
-	out := fmt.Sprintf(tpl, tokenLine, baseURL, model, model, model, model)
-	return []byte(out)
-}
-
-func cmdRm(name string) int {
-	return runOrExit(func() error {
-		if err := removeProfile(name); err != nil {
-			return err
-		}
-		fmt.Printf("✓ removed %s\n", profilePath(name))
 		return nil
 	})
 }
@@ -219,7 +211,7 @@ func cmdProfile(args []string) int {
 		continueMode = true
 	}
 
-	p, err := resolveProfile(profile)
+	ref, err := resolveProfile(profile)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		if errors.Is(err, ErrProfileNotFound) {
@@ -227,6 +219,9 @@ func cmdProfile(args []string) int {
 		}
 		return 1
 	}
+	// kdbx 源: claude 退出后清临时文件(defer 在 main.go 里更合适;
+	// 这里 runOrExit 包了一层 lambda,所以 defer 写在 lambda 顶部更近)
+	defer ref.cleanup()
 
 	rest := args[1:]
 	// 检测 -p / --prompt 以决定 headless
@@ -256,7 +251,7 @@ func cmdProfile(args []string) int {
 			if err != nil {
 				return err
 			}
-			all := assembleArgs(ExecOptions{SettingsPath: p, UserArgs: rest})
+			all := assembleArgs(ExecOptions{SettingsPath: ref.Path, UserArgs: rest})
 			return spawnInteractive(resolve, prefix, all)
 		})
 	}
@@ -284,7 +279,7 @@ func cmdProfile(args []string) int {
 		userArgs := arrangeHeadlessArgs(rest, promptIdx)
 
 		args := assembleArgs(ExecOptions{
-			SettingsPath: p,
+			SettingsPath: ref.Path,
 			Headless:     true,
 			Resume:       continueMode,
 			SessionID:    sessionID,
@@ -305,8 +300,8 @@ func cmdProfile(args []string) int {
 			}
 		}
 		if res.ExitCode != 0 {
-			// 透传非零退出码
-			os.Exit(res.ExitCode)
+			// 透传非零退出码 —— 用 error 包装,避免直接 os.Exit 跳过外层 defer (临时文件)
+			return &exitCodeErr{Code: res.ExitCode}
 		}
 		return nil
 	})
@@ -400,8 +395,6 @@ Usage:
   ccc <profile> -p "task" [args...]       headless single-turn (-p required)
   ccc <profile>:continue [args...]        headless, resuming last session
   ccc list                                list installed profiles
-  ccc add <name>                          interactive profile generator
-  ccc rm <name>                           remove profile
   ccc which <profile> [args...]           print the spawn command line
   ccc version                             print version
   ccc help                                this message
