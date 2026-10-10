@@ -22,7 +22,7 @@
   ```
   ccc/
   ├── main.go        # 唯一入口：错误统一处理退出
-  ├── cli.go         # 命令分发：version/list/which/<profile>/<profile>:continue
+  ├── cli.go         # 命令分发：version/list/which/<profile>(含 -c/-p 透传)
   ├── exec.go        # 唯一允许 os/exec 的文件
   ├── profiles.go    # 本地 profile 文件 CRUD + 内存临时文件管理
   ├── paths.go       # 路径常量集中
@@ -52,12 +52,10 @@
 - [ ] `ccc which <profile>` — 打印将执行的命令；kdbx 源时打印临时文件路径 + `[kdbx]` 标记
 - [ ] 验证：which → list 闭环；kdbx 源的 profile 能 list 到
 
-## Phase 3 — `-p` 与会话恢复
+## Phase 3 — `-p` headless 输出
 
 - [ ] `ccc <profile> -p "任务"` — 同 Phase 1 链路，但走 stream-json 输出路径
-- [ ] `ccc <profile>:continue` — `--output-format stream-json` 抓 `session_id` 写 `<exe同级>/.ccc/sessions.json`，下次 `--resume <id>`
-- [ ] **kdbx 源也支持 continue**：session_id 存本地 `sessions.json`（不含 token，安全）
-- [ ] 验证：6.1 / 6.2 / 6.3 三行全过（kdbx 源和本地源各跑一次）
+- [ ] 续接靠 `ccc <profile> -c -p "..."`，透传 claude 自带 `-c`（不维护 sessions.json）
 
 ## Phase 4 — kdbx 合成引擎（1:1 移植 compose_settings.py）
 
@@ -97,7 +95,7 @@
 | `reference/settings-flow.ts` | `--settings` 参数组装 + 用户参数原样透传 |
 | `reference/headless-executor.ts` | `-p` 命令行 / stream-json / resume |
 | `reference/delegation-handler.ts` | flag 解析与未知 flag 透传分流 |
-| `reference/ccs.ts` | 入口分流：`profile` / `profile:continue` / 子命令 |
+| `reference/ccs.ts` | 入口分流：`profile` / 子命令 |
 | `reference/settings_minimax_m3.template.json` | kdbx `notes.profiles{}` schema 样本 + 本地 fallback 模板 |
 | `E:/__work/__frequently/personal_data/apikey/decrypt/cc_switcher/cc_switcher_kdbx.ps1` | `advapi32.CredReadW` P/Invoke 结构 + pykeepass 调法 + 菜单行为参考 |
 | `E:/__work/__frequently/personal_data/apikey/decrypt/cc_switcher/src/compose_settings.py` | **Phase 4 的 1:1 移植源**：`compose()` / `serialize()` / `SKELETON_ENV` / `ALLOW` / 字节级序列化 |

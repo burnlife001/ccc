@@ -77,13 +77,14 @@ ls dst/.ccc/profiles/
 ./dst/ccc.exe minimax_m3 -p "OK?"
 
 # 续接会话:旧的 ccs minimax_m3:continue -p "..."
-./dst/ccc.exe minimax_m3:continue -p "..."
+# 改为透传 claude 自带 -c
+./dst/ccc.exe minimax_m3 -c -p "..."
 ```
 
 期望:
 - 输出 `OK`(纯文本,非 stream-json 乱码)
 - exit code 0
-- `dst/.ccc/sessions.json` 自动生成,存了 `minimax_m3` 的 session_id
+- 不再生成 `dst/.ccc/sessions.json`(ccc 不维护 session state)
 
 ---
 
@@ -93,7 +94,7 @@ ls dst/.ccc/profiles/
 |---|---|---|
 | `ccs <name>` | `ccc <name>` | 完全一致 |
 | `ccs <name> -p "任务"` | `ccc <name> -p "任务"` | 完全一致;stream-json 自动剥成纯文本 |
-| `ccs <name>:continue -p "..."` | `ccc <name>:continue -p "..."` | 完全一致 |
+| `ccs <name>:continue -p "..."` | `ccc <name> -c -p "..."` | ccc 透传 claude 自带 `-c` 续接最近会话 |
 | `ccs list` | `ccc list` | 完全一致 |
 | `ccs which <name>` | `ccc which <name>` | 完全一致 |
 | `ccs add <name>` | ❌ 无 | ccc 不做交互式生成；profile 只从 kdbx 合成或手动放进 `dst/.ccc/profiles/` |
@@ -115,7 +116,7 @@ ccc 是**最小透传器**,不做的事比旧版多很多,这是刻意的。详�
 |---|---|---|
 | `~/.ccs/settings_<name>.json` | 复制并去掉 `settings_` 前缀 | `dst/.ccc/profiles/<name>.json` |
 | `~/.ccs/config.yaml` | 不迁 | ccc 没有等价的全局配置 |
-| `~/.ccs/delegation-sessions.json` | 不迁 | 由 ccc 重新生成 `dst/.ccc/sessions.json` |
+| `~/.ccs/delegation-sessions.json` | 不迁 | ccc 不维护 session state,续接由 claude 自带 `-c` 处理 |
 | `~/.ccs/backups/` | 不迁 | 旧版的备份机制 |
 | `~/.ccs/cache/` `logs/` `hooks/` `mcp/` `prompts/` `shared/` | 不迁 | ccc 不维护这些运行时数据 |
 
@@ -127,10 +128,10 @@ dst/.ccc/
 │   ├── minimax_m3.json
 │   ├── openrouter_dsv4flash.json
 │   └── ...
-└── sessions.json             # 首次 ccc <name> -p "..." 后自动生成
+└── (无 sessions.json)        # ccc 不维护 session state
 ```
 
-`profiles/` 是手工维护的,`sessions.json` 是 ccc 自己写的(只在 `:continue` 用到)。
+`profiles/` 是手工维护的;续接由 `ccc <name> -c -p "..."` 直接透传 claude 自带 `-c`。
 
 ---
 
@@ -190,7 +191,6 @@ ccs minimax_m3 -p "..."
 - [ ] `ccc list` 看到搬过来的所有 profile
 - [ ] `ccc <name>` 进交互式会话,`/status` 显示对的 `ANTHROPIC_BASE_URL`
 - [ ] `ccc <name> -p "回复 OK"` 输出 `OK`,exit code 0
-- [ ] `ccc <name>:continue -p "你记得我吗"` 能续上
-- [ ] `dst/.ccc/sessions.json` 已被创建
+- [ ] `ccc <name> -c -p "你记得我吗"` 能续上(用 claude 自带 `-c`)
 
 全绿 = 迁移完成。

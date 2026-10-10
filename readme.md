@@ -73,7 +73,7 @@ dst/
 ├── ccc.exe
 └── .ccc/
     ├── profiles/<name>.json   # 本地手动放置的 profile(fallback/调试用,可选)
-    └── sessions.json          # :continue 用的 session_id(不含 token,安全)
+    └── (无 sessions.json)     # 不维护本地 session 状态;续接直接传 claude -c
 ```
 
 exe 和数据同生命期,整个 `dst/` 目录拷走即可搬运。`dst/.ccc/` 已在 `.gitignore`。
@@ -137,7 +137,7 @@ pwsh -File E:\__work\__frequently\personal_data\apikey\decrypt\cc_switcher\test_
 ```
 ccc <profile>           # 启动交互式 claude 会话
 ccc <profile> -p "任务" # 单轮 headless 任务
-ccc <profile>:continue  # 继续上一次的会话(读取上次存的 session_id)
+ccc <profile> -c -p "任务" # 续接上次会话(claude 自带 -c,无需 ccc 记 state)
 ccc list                # 列出所有 profile(本地 + kdbx)
 ccc which <profile>     # 打印将执行的命令(调试用,不实际启动)
 ccc version             # 输出版本号
@@ -168,20 +168,11 @@ ccc minimax_m3 -p "回复 OK 两个字"
 ```
 
 - 同上,但走 stream-json 输出路径
-- 内部捕获 `session_id` 存到 `dst/.ccc/sessions.json`(键是 profile 名),给下次 `:continue` 用
 - 输出为纯文本(已剥 stream-json 信封),`exit code 0` 即成功
 
-#### 3. `ccc <profile>:continue` — 续接上次会话
+> 想续接上一轮?直接 `ccc <profile> -c -p "..."` —— claude 自带 `-c` 续接最近一次会话,ccc 不维护 session 状态。
 
-```
-ccc minimax_m3:continue -p "我刚才让你记的数字?"
-```
-
-- 从 `dst/.ccc/sessions.json` 读出 profile 对应的 `session_id`
-- 没有 session_id?明确报错 `ccc: no previous session for profile "<name>"; run \`ccc <name> -p "task"\` first`,exit code ≠ 0
-- 拼 `--resume <sessionId>` 透传给 claude
-
-#### 4. `ccc list`
+#### 3. `ccc list`
 
 ```
 ccc list
@@ -201,7 +192,7 @@ ccc list
 [override] minimax_m3    → E:\__work\__github\ccc\dst\.ccc\profiles\minimax_m3.json (shadows kdbx:cc/minimax)
 ```
 
-#### 5. `ccc which <profile>` — 调试利器
+#### 4. `ccc which <profile>` — 调试利器
 
 ```
 ccc which minimax_m3
@@ -231,7 +222,7 @@ ccc which minimax_m3 --max-turns 5
 [kdbx]  "C:\Users\yg\.local\bin\claude.exe" "--settings" "C:\Users\yg\AppData\Local\Temp\ccc-settings-123456789.json" "--max-turns" 5
 ```
 
-#### 6. `ccc version`
+#### 5. `ccc version`
 
 ```
 ccc version
@@ -394,7 +385,7 @@ Notes:
 
 # 5. 续接
 ./dst/ccc.exe minimax_m3 -p "记住数字 8741,只回'收到'"
-./dst/ccc.exe minimax_m3:continue -p "我让你记的数字?"
+./dst/ccc.exe minimax_m3 -c -p "我让你记的数字?"
 # 8741
 ```
 
