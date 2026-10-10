@@ -20,10 +20,24 @@ import (
 var version = "0.1.0-dev"
 
 // exeDir 返回 ccc.exe 所在目录;.env 与 .ccc/ 都锚定在这里。
+// 经符号链接(如 ~/.local/bin/ccc.exe)启动时 os.Executable 返回链接路径,
+// 必须逐跳 Readlink 解析到真实目标,否则 .env 会找到链接所在目录去。
+// 不能用 filepath.EvalSymlinks:本机 C:\Users\yg 本身是指向 E:\yg 的链接,
+// Go 的组件遍历在该形态下报 "The system cannot find the path specified"。
 func exeDir() string {
 	exe, err := os.Executable()
 	if err != nil {
 		return "."
+	}
+	for i := 0; i < 8; i++ { // 上限防循环链接
+		target, err := os.Readlink(exe)
+		if err != nil {
+			break // 非 reparse point = 已是真实文件
+		}
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(filepath.Dir(exe), target)
+		}
+		exe = target
 	}
 	return filepath.Dir(exe)
 }
