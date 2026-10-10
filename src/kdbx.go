@@ -1,12 +1,14 @@
-// ccc —— kdbx 直读 + 内存合成 settings JSON。
+// ccc —— kdbx 直读 + 内存合成 settings JSON + DPAPI 凭据存取。
 // 唯一允许 import gokeepasslib / syscall.crypt32 的文件;
 //
-// 阶段路线 (todolist Phase 4):
-//   1. readCredDpapi: 读 .kdbx_master.cred 并 CryptUnprotectData (DPAPI, user-scope)
-//   2. openAndUnlockKdbx: 解锁 kdbx 并解锁 protected entries
-//   3. findGroup: 递归找 cc 组
-//   4. composeSettings + serializeSettings: 1:1 复刻 compose_settings.py
-//   5. LoadProfile / ListProfiles: 对外 API
+// 阶段路线 (todolist Phase 4 + Phase 5):
+//   1. cryptProtectData / cryptUnprotectData: DPAPI user-scope 加解密
+//   2. storeCred / checkCred / deleteCred: 对应 `ccc cred store|check|delete`
+//   3. readCredDpapi: 读 .kdbx_master.cred 并 CryptUnprotectData
+//   4. openAndUnlockKdbx: 解锁 kdbx 并解锁 protected entries
+//   5. findGroup: 递归找 cc 组
+//   6. composeSettings + serializeSettings: 1:1 复刻 compose_settings.py
+//   7. LoadProfile / ListProfiles: 对外 API
 //
 // 字节级复刻原则 (Phase 4.1 验收):
 //   - 顶层字段序: env, permissions, skipDangerousModePermissionPrompt
@@ -14,8 +16,8 @@
 //   - allow 数组单行紧凑 ("Bash","Edit",...)
 //   - 2 空格缩进,末尾 \n, 不带 current_Model_Provider
 //
-// 跨平台: kdbx 操作仅在 Windows 有意义;非 Windows 上 LoadProfile/ListProfiles
-// 直接返回错误,由 cli 走 fallback 路径。
+// 跨平台: kdbx / DPAPI 仅在 Windows 有意义;非 Windows 上 LoadProfile/ListProfiles
+// 及 store/check/delete 均直接返回错误,由 cli 报错退出。
 package main
 
 import (
@@ -253,11 +255,10 @@ func openAndUnlockKdbx() (*gokeepasslib.Database, error) {
 		// gokeepasslib 在主密码错误时返回 "Database integrity check failed"
 		// —— 包装为更明确的 bad credentials 提示
 		if strings.Contains(err.Error(), "integrity check") {
-			setupScript := filepath.Join(filepath.Dir(path), "ccc_kdbx.ps1")
 			return nil, fmt.Errorf(
 				"kdbx: bad credentials (DPAPI blob at %s may be stale; "+
-					"re-run: pwsh -File %q)",
-				credPathFor(path), setupScript)
+					"re-run: ccc cred store)",
+				credPathFor(path))
 		}
 		return nil, fmt.Errorf("kdbx decode: %w", err)
 	}
@@ -265,6 +266,30 @@ func openAndUnlockKdbx() (*gokeepasslib.Database, error) {
 		return nil, fmt.Errorf("kdbx unlock: %w", err)
 	}
 	return db, nil
+}
+
+// verifyKdbxPassword 用候选密码试开 kdbx;成功 → nil,失败 → 错误。
+// 失败情形:
+//   - 主密码错 → "kdbx: bad credentials ..."
+//   - 文件 IO / 解析 → 透传
+// 共享给 storeCred (提交前预演) 和 checkCred (持证复核)。
+func verifyKdbxPassword(kdbxPath, password string) error {
+	f, err := os.Open(kdbxPath)
+	if err != nil {
+		return fmt.Errorf("open kdbx: %w", err)
+	}
+	defer f.Close()
+
+	db := gokeepasslib.NewDatabase()
+	db.Credentials = gokeepasslib.NewPasswordCredentials(password)
+	if err := gokeepasslib.NewDecoder(f).Decode(db); err != nil {
+		if strings.Contains(err.Error(), "integrity check") {
+			return fmt.Errorf(
+				"kdbx: bad credentials (password does NOT unlock the kdbx)")
+		}
+		return fmt.Errorf("kdbx decode: %w", err)
+	}
+	return nil
 }
 
 // findGroup 在组树中递归找 name 匹配的组。找不到返回 nil。
@@ -427,9 +452,14 @@ func cryptUnprotectData(ciphertext []byte) ([]byte, error) {
 	k32 := syscall.NewLazyDLL("kernel32.dll")
 	localFree := k32.NewProc("LocalFree")
 
+	// 空切片取址会 panic;给 nil 指针,cbData=0。
+	var pb *byte
+	if len(ciphertext) > 0 {
+		pb = &ciphertext[0]
+	}
 	inBlob := &dataBlob{
 		cbData: uint32(len(ciphertext)),
-		pbData: &ciphertext[0],
+		pbData: pb,
 	}
 	var outBlob dataBlob
 
@@ -449,7 +479,56 @@ func cryptUnprotectData(ciphertext []byte) ([]byte, error) {
 
 	// 拷贝出去再返回,避免 LocalFree 后悬空。
 	out := make([]byte, outBlob.cbData)
-	copy(out, unsafe.Slice(outBlob.pbData, outBlob.cbData))
+	if outBlob.cbData > 0 {
+		copy(out, unsafe.Slice(outBlob.pbData, outBlob.cbData))
+	}
+	return out, nil
+}
+
+// cryptProtectData 加密 DPAPI user-scope blob。
+// 与 cryptUnprotectData 对称,供 storeCred 使用;
+// 输出格式与 cc-switch-kdbx.kdbx_cred._crypt_protect 等价,字节级可互换。
+//
+// 参数与 cryptUnprotectData 相同:
+// pOptionalEntropy=NULL, pvReserved=NULL, pPromptStruct=NULL,
+// dwFlags=0(当前用户范围)。
+func cryptProtectData(plaintext []byte) ([]byte, error) {
+	if !isWindows() {
+		return nil, errors.New("DPAPI requires Windows")
+	}
+	dll := syscall.NewLazyDLL("crypt32.dll")
+	proc := dll.NewProc("CryptProtectData")
+	k32 := syscall.NewLazyDLL("kernel32.dll")
+	localFree := k32.NewProc("LocalFree")
+
+	var pb *byte
+	if len(plaintext) > 0 {
+		pb = &plaintext[0]
+	}
+	inBlob := &dataBlob{
+		cbData: uint32(len(plaintext)),
+		pbData: pb,
+	}
+	var outBlob dataBlob
+
+	r, _, e := proc.Call(
+		uintptr(unsafe.Pointer(inBlob)),
+		0, // ppszDataDescr
+		0, // pOptionalEntropy
+		0, // pvReserved
+		0, // pPromptStruct
+		0, // dwFlags
+		uintptr(unsafe.Pointer(&outBlob)),
+	)
+	if r == 0 {
+		return nil, fmt.Errorf("CryptProtectData: %v", e)
+	}
+	defer localFree.Call(uintptr(unsafe.Pointer(outBlob.pbData)))
+
+	out := make([]byte, outBlob.cbData)
+	if outBlob.cbData > 0 {
+		copy(out, unsafe.Slice(outBlob.pbData, outBlob.cbData))
+	}
 	return out, nil
 }
 
@@ -458,35 +537,224 @@ func cryptUnprotectData(ciphertext []byte) ([]byte, error) {
 // 与 cc-switch-kdbx.kdbx_cred.load() 等价一一对应。
 //
 // 错误信号:
-//   - 文件不存在 → 提示运行同目录 cc_kdbx.ps1 重建
+//   - 文件不存在 → 提示运行 ccc cred store 重建
 //   - CryptUnprotectData 失败 → 大概率是别的用户/机器保存的(DPAPI 绑 user+机器)
 func readCredDpapi(kdbxPath string) (string, error) {
 	if !isWindows() {
 		return "", errors.New("kdbx credential read requires Windows")
 	}
 	credPath := credPathFor(kdbxPath)
-	setupScript := filepath.Join(filepath.Dir(kdbxPath), "ccc_kdbx.ps1")
 
 	raw, err := os.ReadFile(credPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return "", fmt.Errorf(
 				"credential file %q not found "+
-					"(run: pwsh -File %q to create one)",
-				credPath, setupScript)
+					"(run: ccc cred store to create one)",
+				credPath)
 		}
 		return "", fmt.Errorf("read credential file: %w", err)
 	}
 	ciphertext, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(raw)))
 	if err != nil {
-		return "", fmt.Errorf("credential file not valid base64: %w", err)
+		return "", fmt.Errorf(
+			"credential file not valid base64 "+
+				"(corrupt? run: ccc cred store to recreate): %w", err)
 	}
 	plaintext, err := cryptUnprotectData(ciphertext)
 	if err != nil {
 		return "", fmt.Errorf(
 			"credential decrypt failed (likely wrong user or different machine; "+
-				"re-run: pwsh -File %q): %w",
-			setupScript, err)
+				"run: ccc cred store): %w", err)
 	}
 	return string(plaintext), nil
+}
+
+// ---------- DPAPI 凭据管理 (ccc cred store|check|delete) ----------
+
+// storeCred: 先 verify_kdbx 校验密码,再 CryptProtectData 加密 → base64 落盘。
+// 步骤:
+//   1. 候选密码试开 kdbx,失败直接返回(不落盘)—— 满足 A3 验收
+//   2. DPAPI 加密,写 base64(ciphertext) 到 credPathFor(kdbxPath)
+//   3. 文件权限 0600(其它进程无法读取)
+// 落盘前任何步骤失败 → 不产生 cred 文件(原子化保证)。
+func storeCred(kdbxPath, password string) (retErr error) {
+	if !isWindows() {
+		return errors.New("cred store requires Windows")
+	}
+	if err := verifyKdbxPassword(kdbxPath, password); err != nil {
+		return err
+	}
+	ciphertext, err := cryptProtectData([]byte(password))
+	if err != nil {
+		return fmt.Errorf("DPAPI encrypt: %w", err)
+	}
+	encoded := base64.StdEncoding.EncodeToString(ciphertext)
+	credPath := credPathFor(kdbxPath)
+
+	// 落盘 + rename 到最终位置 → 写到同目录临时文件再 rename,避免半截文件
+	dir := filepath.Dir(credPath)
+	tmp, err := os.CreateTemp(dir, ".kdbx_master.cred.*.tmp")
+	if err != nil {
+		return fmt.Errorf("create temp cred file: %w", err)
+	}
+	tmpName := tmp.Name()
+	defer func() {
+		if retErr != nil {
+			_ = os.Remove(tmpName) // 失败时清残留
+		}
+	}()
+	if err := tmp.Chmod(0o600); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("chmod cred: %w", err)
+	}
+	if _, err := tmp.WriteString(encoded); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("write cred: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close cred: %w", err)
+	}
+	if err := os.Rename(tmpName, credPath); err != nil {
+		return fmt.Errorf("rename cred: %w", err)
+	}
+	return nil
+}
+
+// checkCred: 读 cred → DPAPI 解密 → 试开 kdbx;全部通过 → nil。
+// 失败原因:
+//   - 文件不存在 → 指向 ccc cred store
+//   - base64 不合法 → 指向 ccc cred store(腐坏)
+//   - DPAPI 解密失败 → 跨用户/跨机器(DPAPI 绑 user+机器),指向 ccc cred store
+//   - 解出来的主密码打不开 kdbx → 指向 ccc cred store(stale)
+func checkCred(kdbxPath string) error {
+	if !isWindows() {
+		return errors.New("cred check requires Windows")
+	}
+	credPath := credPathFor(kdbxPath)
+	raw, err := os.ReadFile(credPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf(
+				"credential file %q not found "+
+					"(run: ccc cred store to create one)", credPath)
+		}
+		return fmt.Errorf("read credential file: %w", err)
+	}
+	ciphertext, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(raw)))
+	if err != nil {
+		return fmt.Errorf(
+			"credential file not valid base64 "+
+				"(corrupt? run: ccc cred store to recreate): %w", err)
+	}
+	plaintext, err := cryptUnprotectData(ciphertext)
+	if err != nil {
+		return fmt.Errorf(
+			"credential decrypt failed (likely wrong user or different machine; "+
+				"run: ccc cred store): %w", err)
+	}
+	pw := string(plaintext)
+	// 立即清引用(防 panic 后仍可被 recover 利用)
+	defer func() { pw = ""; plaintext = nil }()
+
+	if err := verifyKdbxPassword(kdbxPath, pw); err != nil {
+		return fmt.Errorf(
+			"credential decrypts but does NOT open the kdbx "+
+				"(password changed? run: ccc cred store): %w", err)
+	}
+	return nil
+}
+
+// deleteCred: 删 cred 文件;不存在时返回 (existed=false, err=nil),供调用方友好提示。
+func deleteCred(kdbxPath string) (existed bool, err error) {
+	if !isWindows() {
+		return false, errors.New("cred delete requires Windows")
+	}
+	credPath := credPathFor(kdbxPath)
+	if rerr := os.Remove(credPath); rerr != nil {
+		if errors.Is(rerr, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, fmt.Errorf("remove cred: %w", rerr)
+	}
+	return true, nil
+}
+
+// ---------- 交互式密码读取 (stdin tty only) ----------
+
+// Windows console 旗标常量。来源:Win32 Console Modes。
+const (
+	enableEchoInput      uint32 = 0x0004
+	enableProcessedInput uint32 = 0x0001
+)
+
+// readPasswordInteractive 从 console 逐字符读取密码,无回显,每字符打 '*'。
+//   - 必须 stdin 是 console(否则立即报错,防管道/后台卡死)
+//   - Enter(\r) → 终止
+//   - Backspace(\b/\x7f) → 弹栈 + 屏幕 \b \b 退格
+//   - Ctrl+C(\x03) → 返回错误,main.go 的 recover 会兜成 exit 2
+//   - 函数键前缀(\x00/\xe0) → 吞掉下一个扫描码
+//
+// 实现全部走 stdlib syscall:kernel32!GetConsoleMode + 走 lazy DLL 直接调
+// SetConsoleMode(syscall 未导出该函数) + Read。
+// 不引入 golang.org/x/term 是为了严守 go架构规范 §7 的 std-only 原则。
+func readPasswordInteractive(prompt string) (string, error) {
+	h := syscall.Handle(os.Stdin.Fd())
+	var oldMode uint32
+	if err := syscall.GetConsoleMode(h, &oldMode); err != nil {
+		// 非 console(管道/重定向)→ 直接失败,不阻塞
+		return "", errors.New("requires interactive terminal (stdin is not a console)")
+	}
+
+	// syscall 包只导出 GetConsoleMode,SetConsoleMode 走 lazy DLL 直调。
+	k32 := syscall.NewLazyDLL("kernel32.dll")
+	setModeProc := k32.NewProc("SetConsoleMode")
+	newMode := oldMode &^ enableEchoInput
+	if r, _, e := setModeProc.Call(uintptr(h), uintptr(newMode)); r == 0 {
+		return "", fmt.Errorf("disable console echo: %v", e)
+	}
+	defer func() {
+		// 任何出口都恢复(成功 / 错误 / panic 都被 defer 捕获)
+		_, _, _ = setModeProc.Call(uintptr(h), uintptr(oldMode))
+	}()
+
+	fmt.Fprint(os.Stderr, prompt)
+	defer fmt.Fprintln(os.Stderr) // 末尾换行,保证 prompt 不挂在光标上
+
+	var buf []byte
+	ch := make([]byte, 1)
+	for {
+		n, err := syscall.Read(h, ch)
+		if err != nil {
+			return string(buf), fmt.Errorf("read password: %w", err)
+		}
+		if n == 0 {
+			// EOF:用户 Ctrl+Z / 关 stdin;视为空密码
+			return string(buf), nil
+		}
+		c := ch[0]
+		switch c {
+		case '\r', '\n':
+			return string(buf), nil
+		case '\x03':
+			return "", errors.New("interrupted by Ctrl+C")
+		case '\b', 0x7f:
+			if len(buf) > 0 {
+				buf = buf[:len(buf)-1]
+				fmt.Fprint(os.Stderr, "\b \b")
+			}
+		default:
+			// 吞掉功能键前缀字节(方向键、F1-F12 等发 0x00 或 0xe0 加扫描码)
+			if c == 0x00 || c == 0xe0 {
+				_, _ = syscall.Read(h, ch) // 二次读:忽略扫描码
+				continue
+			}
+			// 过滤其它控制字符(防止意外的 ANSI 等)
+			if c < 0x20 {
+				continue
+			}
+			buf = append(buf, c)
+			fmt.Fprint(os.Stderr, "*")
+		}
+	}
 }

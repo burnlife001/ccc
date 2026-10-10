@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -55,6 +56,8 @@ func Dispatch(args []string) int {
 			return 2
 		}
 		return cmdWhich(args[1], args[2:])
+	case "cred":
+		return cmdCred(args[1:])
 	}
 
 	// 默认:<profile>(含 -c/-p 透传)
@@ -126,6 +129,85 @@ func cmdList() int {
 		}
 		return nil
 	})
+}
+
+// ----- cred 子命令 (ccc cred store|check|delete) -----
+
+// cmdCred 分发 cred 子命令。无子命令 / 非法子命令 → 打用法 + 退出码 2。
+func cmdCred(subArgs []string) int {
+	return runOrExit(func() error {
+		if len(subArgs) == 0 {
+			printCredUsage(os.Stderr)
+			return &exitCodeErr{Code: 2}
+		}
+		switch subArgs[0] {
+		case "store":
+			return cmdCredStore()
+		case "check":
+			return cmdCredCheck()
+		case "delete":
+			return cmdCredDelete()
+		default:
+			printCredUsage(os.Stderr)
+			return &exitCodeErr{Code: 2}
+		}
+	})
+}
+
+// cmdCredStore 交互式输入密码 → verify → DPAPI 加密落盘。
+// 满足 A2(成功路径) / A3(失败不落盘) / A7(非 tty 立即报错)。
+func cmdCredStore() error {
+	path := kdbxPath()
+	if path == "" {
+		return errors.New("cred store: CCC_KDBX_PATH not set (add it to " +
+			filepath.Join(exeDir(), ".env") + " or the environment)")
+	}
+	if _, err := os.Stat(path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("cred store: kdbx file not found at %s (set CCC_KDBX_PATH)", path)
+		}
+		return fmt.Errorf("cred store: stat kdbx: %w", err)
+	}
+	password, err := readPasswordInteractive("Enter kdbx master password: ")
+	if err != nil {
+		return fmt.Errorf("cred store: %w", err)
+	}
+	if password == "" {
+		return errors.New("cred store: empty password")
+	}
+	// 验证 + 落盘之间及时清引用
+	fmt.Fprintln(os.Stderr, "[store] verifying password against kdbx before writing credential...")
+	if err := storeCred(path, password); err != nil {
+		// storeCred 内部已 verify → 错误明确为密码错或 DPAPI 错
+		return fmt.Errorf("cred store: %w", err)
+	}
+	defer func() { password = "" }()
+	fmt.Fprintln(os.Stderr, "[store] VERIFY_OK: password opens the kdbx")
+	fmt.Fprintf(os.Stderr, "[store] STORED: %s (DPAPI, current-user scope)\n", credPathFor(path))
+	return nil
+}
+
+// cmdCredCheck: 读 cred → DPAPI 解密 → 试开 kdbx。CHECK_OK + exit 0。
+func cmdCredCheck() error {
+	if err := checkCred(kdbxPath()); err != nil {
+		return fmt.Errorf("cred check: %w", err)
+	}
+	fmt.Println("CHECK_OK")
+	return nil
+}
+
+// cmdCredDelete: 删 cred 文件。存在 → DELETED;不存在 → NOT_FOUND(均 exit 0)。
+func cmdCredDelete() error {
+	existed, err := deleteCred(kdbxPath())
+	if err != nil {
+		return fmt.Errorf("cred delete: %w", err)
+	}
+	if !existed {
+		fmt.Println("NOT_FOUND: nothing to delete")
+		return nil
+	}
+	fmt.Printf("DELETED: %s\n", credPathFor(kdbxPath()))
+	return nil
 }
 
 func cmdWhich(profile string, userArgs []string) int {
@@ -302,8 +384,17 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "  ccc <profile> -c -p \"task\" [args...]    headless, claude -c 续接上次会话")
 	fmt.Fprintln(w, "  ccc list                                list installed profiles")
 	fmt.Fprintln(w, "  ccc which <profile> [args...]           print the spawn command line")
+	fmt.Fprintln(w, "  ccc cred <store|check|delete>           manage kdbx master password (DPAPI)")
 	fmt.Fprintln(w, "  ccc version                             print version")
 	fmt.Fprintln(w, "  ccc help                                this message")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Profiles source: kdbx file at "+kdbxPath()+" (group "+kdbxGroup()+")")
+}
+
+// printCredUsage — `ccc cred` 无参数 / 非法子命令时的输出。
+func printCredUsage(w io.Writer) {
+	fmt.Fprintln(w, "ccc cred <store|check|delete>")
+	fmt.Fprintln(w, "  store    prompt for kdbx master password, verify, store DPAPI-encrypted")
+	fmt.Fprintln(w, "  check    verify stored credential decrypts and opens the kdbx")
+	fmt.Fprintln(w, "  delete   delete stored credential file (.kdbx_master.cred)")
 }
