@@ -35,12 +35,10 @@ import (
 
 // ---------- 路径/凭证默认值 ----------
 
-// kdbxPath —— 可被 CCC_KDBX_PATH 覆盖(测试隔离钩子)。
+// kdbxPath —— 只认 CCC_KDBX_PATH(由 <exeDir>/.env 或环境变量提供)。
+// 源码不硬编码任何机器路径;未设置时返回空串,由 openAndUnlockKdbx 报错。
 func kdbxPath() string {
-	if p := os.Getenv("CCC_KDBX_PATH"); p != "" {
-		return p
-	}
-	return `E:\__work\BaseTools\cc-switch-kdbx\kdbx\apikey.kdbx`
+	return os.Getenv("CCC_KDBX_PATH")
 }
 
 // kdbxGroup —— 可被 CCC_KDBX_GROUP 覆盖。
@@ -216,6 +214,12 @@ func sortByName(names []string, sources []ProfileSource) {
 // 返回 *Database 指针;调用方读完即丢弃。
 func openAndUnlockKdbx() (*gokeepasslib.Database, error) {
 	path := kdbxPath()
+	if path == "" {
+		return nil, fmt.Errorf(
+			"kdbx: CCC_KDBX_PATH not set "+
+				"(add it to %s or the environment)",
+			filepath.Join(exeDir(), ".env"))
+	}
 	if _, err := os.Stat(path); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf(
@@ -244,7 +248,7 @@ func openAndUnlockKdbx() (*gokeepasslib.Database, error) {
 		// gokeepasslib 在主密码错误时返回 "Database integrity check failed"
 		// —— 包装为更明确的 bad credentials 提示
 		if strings.Contains(err.Error(), "integrity check") {
-			setupScript := filepath.Join(filepath.Dir(path), "cc_kdbx.ps1")
+			setupScript := filepath.Join(filepath.Dir(path), "ccc_kdbx.ps1")
 			return nil, fmt.Errorf(
 				"kdbx: bad credentials (DPAPI blob at %s may be stale; "+
 					"re-run: pwsh -File %q)",
@@ -456,7 +460,7 @@ func readCredDpapi(kdbxPath string) (string, error) {
 		return "", errors.New("kdbx credential read requires Windows")
 	}
 	credPath := credPathFor(kdbxPath)
-	setupScript := filepath.Join(filepath.Dir(kdbxPath), "cc_kdbx.ps1")
+	setupScript := filepath.Join(filepath.Dir(kdbxPath), "ccc_kdbx.ps1")
 
 	raw, err := os.ReadFile(credPath)
 	if err != nil {

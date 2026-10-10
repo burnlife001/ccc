@@ -5,7 +5,7 @@ ccc.exe
 dist/
 build/
 out/
-
+tmp/
 # ===== Go =====
 # 注意：go.sum 必须 commit，不忽略
 *.test
@@ -47,3 +47,26 @@ docs/**/*.tmp
 # ===== dst/.ccc/ —— 运行时数据,含真实 token,永不入库 =====
 # (YG-8 教训:profile json 里是明文 ANTHROPIC_AUTH_TOKEN)
 dst/.ccc/
+
+# ===== kdbx/ —— 密钥与加密产物,永不入库(合并自 cc-switch-kdbx/.gitignore) =====
+*.kdbx
+.kdbx_master.cred
+*.pfx
+*.pem
+*.key
+decrypt/
+.opencode
+**/.codegraph/
+.history/
+
+# ===== Python (kdbx/ 遗留脚本环境) =====
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+.env
+*.sqlite3
+*.db

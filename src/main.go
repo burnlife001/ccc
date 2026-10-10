@@ -19,6 +19,8 @@ func main() {
 		}
 	}()
 
+	loadDotEnv() // <exeDir>/.env → 进程环境(已有环境变量优先)
+
 	code := Dispatch(os.Args[1:])
 	os.Exit(code)
 }
