@@ -181,15 +181,8 @@ ccc list
 输出:
 
 ```
-[local]  test_p          → E:\__work\__github\ccc\dst\.ccc\profiles\test_p.json
 [kdbx]   minimax_m3      → kdbx:cc/minimax (notes.profiles.minimax_m3)
 [kdbx]   minimax_m3_hs   → kdbx:cc/minimax (notes.profiles.minimax_m3_highspeed)
-```
-
-同名时 local 优先,标 `[override]`:
-
-```
-[override] minimax_m3    → E:\__work\__github\ccc\dst\.ccc\profiles\minimax_m3.json (shadows kdbx:cc/minimax)
 ```
 
 #### 4. `ccc which <profile>` — 调试利器
@@ -199,11 +192,6 @@ ccc which minimax_m3
 ```
 
 输出完整命令行,**路径全是绝对路径**:
-
-本地源:
-```
-"C:\Users\yg\.local\bin\claude.exe" "--settings" "E:\__work\__github\ccc\dst\.ccc\profiles\minimax_m3.json"
-```
 
 kdbx 源:
 ```

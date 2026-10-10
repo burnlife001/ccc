@@ -1,7 +1,9 @@
 package main
 
 // cli.go —— 命令分发:version/list/which/<profile>(含 -c/-p 透传)。
-// 只组合 profiles/exec/paths 暴露的函数,不引入新逻辑。
+// 只组合 profiles / kdbx / exec / paths 暴露的函数,不引入新逻辑。
+//
+// v2 简化:ccc 只走 kdbx 源,移除所有 local profile source 相关分支。
 
 import (
 	"errors"
@@ -12,17 +14,14 @@ import (
 )
 
 // profileRef 是 resolveProfile 的返回:
-//   - Path:  给 --settings 用的绝对路径(本地 = 持久文件;kdbx = 临时文件)
-//   - Source: "local" / "kdbx"
-//   - TempPath: 仅 kdbx 源非空,用于 defer os.Remove
+//   - Path: 给 --settings 用的绝对路径(kdbx = 临时文件)
+//   - TempPath: 调用方负责 defer os.Remove
 type profileRef struct {
 	Path     string
-	Source   string // "local" | "kdbx"
-	TempPath string // kdbx 源时 = Path;本地源时为空
+	TempPath string // 始终 == Path(只有 kdbx 源);保留字段以让 cleanup 行为显式
 }
 
-// cleanup 若 kdbx 源则删临时文件;本地源 no-op。
-// 错误吞掉(claude 退出后 temp 本来就会被 CleanupTempFiles 清)。
+// cleanup 删除 kdbx 源的临时 settings 文件。best-effort。
 func (r profileRef) cleanup() {
 	if r.TempPath != "" {
 		_ = os.Remove(r.TempPath)
@@ -63,11 +62,6 @@ func Dispatch(args []string) int {
 }
 
 // runOrExit 是错误处理统一出口:错误则打印并返回非零 code。
-// 错误消息按惯例:用户输入类错误在源站已带 "ccc: " 前缀,系统类错误不带;
-// 这里原样打印,不再二次前缀,避免 "ccc: ccc: ..."。
-//
-// exitCodeErr: 透传 exit code(用于 headless 模式 spawn 透传 claude 退出码,
-// 避免直接 os.Exit 把外层 defer 跳过导致临时文件泄漏)。
 func runOrExit(fn func() error) int {
 	if err := fn(); err != nil {
 		var ec *exitCodeErr
@@ -90,61 +84,27 @@ func (e *exitCodeErr) Error() string { return fmt.Sprintf("exit %d", e.Code) }
 
 // ----- 子命令实现 -----
 
-// listEntry 描述一条 profile 来源 + 名字 + 描述,供 cmdList 输出。
+// listEntry 描述一条 kdbx profile 来源,供 cmdList 输出。
 type listEntry struct {
-	Name   string
-	Source string // "local" / "kdbx"
-	Desc   string // local = 绝对路径;kdbx = "kdbx:cc/<entry> (notes.profiles.<key>)"
+	Name string
+	Desc string // "kdbx:<group>/<entry> (notes.profiles.<key>)"
 }
 
-// listEntries 双源合并,同名时 local 优先标 [override]。
-// kdbx 加载失败时返回 warn 字符串(由 cmdList 在末尾打到 stderr);
-// 出错不影响本地 profile 的展示。
+// listEntries 列出 kdbx cc 组所有 profile,字母序。
+// kdbx 加载失败时返回 warn 字符串(由 cmdList 在末尾打到 stderr)。
 func listEntries() (entries []listEntry, kdbxWarn string) {
-	localSet := map[string]string{} // name → 绝对路径
-	for _, n := range mustListLocal() {
-		localSet[n] = profilePath(n)
-	}
-	kdbxSet := map[string]ProfileSource{} // name → 所在 entry
-	if _, sources, err := ListProfilesRich(); err != nil {
+	names, sources, err := ListProfilesRich()
+	if err != nil {
 		kdbxWarn = err.Error()
-	} else {
-		for _, s := range sources {
-			kdbxSet[s.Name] = s
-		}
+		return nil, kdbxWarn
 	}
-
-	seen := map[string]bool{}
-	var out []listEntry
-
-	// 先本地(含 override)
-	for n, path := range localSet {
-		seen[n] = true
-		e := listEntry{Name: n, Source: "local", Desc: path}
-		if _, ok := kdbxSet[n]; ok {
-			e.Source = "override"
-			e.Desc = path + " (shadows kdbx:" + kdbxGroup() + "/" + kdbxSet[n].EntryTitle + ")"
-		}
-		out = append(out, e)
-	}
-	// 再 kdbx 中独有
-	for name, src := range kdbxSet {
-		if seen[name] {
-			continue
-		}
-		out = append(out, listEntry{
-			Name:   name,
-			Source: "kdbx",
-			Desc:   "kdbx:" + kdbxGroup() + "/" + src.EntryTitle + " (notes.profiles." + name + ")",
+	for i, n := range names {
+		entries = append(entries, listEntry{
+			Name: n,
+			Desc: "kdbx:" + kdbxGroup() + "/" + sources[i].EntryTitle + " (notes.profiles." + n + ")",
 		})
 	}
-	// 字母序
-	for i := 1; i < len(out); i++ {
-		for j := i; j > 0 && out[j-1].Name > out[j].Name; j-- {
-			out[j-1], out[j] = out[j], out[j-1]
-		}
-	}
-	return out, kdbxWarn
+	return entries, ""
 }
 
 func cmdList() int {
@@ -152,15 +112,14 @@ func cmdList() int {
 		entries, kdbxWarn := listEntries()
 		if len(entries) == 0 {
 			fmt.Fprintln(os.Stderr, "(no profiles installed)")
-			fmt.Fprintln(os.Stderr, "  bootstrap: copy settings_*.json → "+profilesDir()+`\`)
-			fmt.Fprintln(os.Stderr, "  or:        drop a settings_*.json into "+profilesDir()+`  /  edit kdbx group `+kdbxGroup())
+			fmt.Fprintln(os.Stderr, "  check kdbx group "+kdbxGroup()+" at "+kdbxPath())
 			if kdbxWarn != "" {
 				fmt.Fprintln(os.Stderr, "  kdbx warn: "+kdbxWarn)
 			}
 			return nil
 		}
 		for _, e := range entries {
-			fmt.Printf("[%s] %s\n", e.Source, e.Name)
+			fmt.Printf("[kdbx] %s\n", e.Name)
 		}
 		if kdbxWarn != "" {
 			fmt.Fprintln(os.Stderr, "  kdbx warn: "+kdbxWarn)
@@ -187,9 +146,7 @@ func cmdWhich(profile string, userArgs []string) int {
 			UserArgs:     userArgs,
 		})
 		// kdbx 源加 [kdbx] 标记
-		if ref.Source == "kdbx" {
-			fmt.Fprint(os.Stdout, "[kdbx] ")
-		}
+		fmt.Fprint(os.Stdout, "[kdbx] ")
 		printCommand(os.Stdout, resolve, prefix, args)
 		return nil
 	})
@@ -213,8 +170,7 @@ func cmdProfile(args []string) int {
 		}
 		return 1
 	}
-	// kdbx 源: claude 退出后清临时文件(defer 在 main.go 里更合适;
-	// 这里 runOrExit 包了一层 lambda,所以 defer 写在 lambda 顶部更近)
+	// kdbx 源: claude 退出后清临时文件
 	defer ref.cleanup()
 
 	rest := args[1:]
@@ -338,7 +294,7 @@ func quoteArg(s string) string {
 // ----- 使用说明 -----
 
 func printUsage(w io.Writer) {
-	fmt.Fprintln(w, "ccc — Go single-exe replacement for ccs.")
+	fmt.Fprintln(w, "ccc — Go single-exe Claude Code launcher (kdbx source only).")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "Usage:")
 	fmt.Fprintln(w, "  ccc <profile> [args...]                spawn interactive claude with profile")
@@ -349,5 +305,5 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "  ccc version                             print version")
 	fmt.Fprintln(w, "  ccc help                                this message")
 	fmt.Fprintln(w, "")
-	fmt.Fprintln(w, "Profiles live in: "+profilesDir()+`\<name>.json  (与 ccc.exe 同级的 .ccc/)`)
+	fmt.Fprintln(w, "Profiles source: kdbx file at "+kdbxPath()+" (group "+kdbxGroup()+")")
 }
