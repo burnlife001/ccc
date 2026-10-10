@@ -12,7 +12,7 @@
 - 在 MiniMax / Kimi / DeepSeek / Claude 之间切来切去,不想手改环境变量
 - 一供应商多模型(如 MiniMax 配 M3 / M3-highspeed),想按需切
 - token 不愿散落 json,想集中加密保管
-- 想单 exe 跑,不装 npm / Node / Python
+- 想单 exe 跑,不装 Node 运行时
 
 不做什么(刻意):不改 `CLAUDE_CONFIG_DIR`、不注入 MCP/hook、不写 `~/.claude/`、不起守护进程。
 

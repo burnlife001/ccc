@@ -1,13 +1,11 @@
 // phase4_test.go —— Phase 4 字节级验收 + LoadProfile 行为测试。
 //
 // Phase 4.1 验收:
-//   LoadProfile 合成的 settings JSON 必须与 compose_settings.py 对同一条 entry
-//   的输出逐字节 diff 一致(去除 current_Model_Provider 后)。
+//   LoadProfile 合成的 settings JSON 与硬编码 golden output 逐字节 diff 一致
+//   (去除 current_Model_Provider 后)。
 //
 // 这里不真正打开 kdbx(测试环境无 master password),而是把 composeSettings +
-// serializeSettings 当成库,直接喂 Python 端使用的同一份 notes/token,
-//
-//   比较 Go 输出与一份"硬编码期望"(由 phase4_1_gen.py 一次性生成)。
+// serializeSettings 当成库,直接喂同一份 notes/token,与一份"硬编码期望"对 diff。
 
 package main
 
@@ -22,10 +20,9 @@ import (
 
 // ----- 4.1 字节级 diff -----
 
-// expectedFromPython —— compose_settings.py 输出的精确副本(去掉
-// current_Model_Provider 后),由 phase4_1_gen.py 一次性生成。
-// 这是"硬证据";若 Go 端输出变化,这里也要同步更新(用 gen 脚本)。
-const expectedFromPython = `{
+// expectedGoldenJSON —— Phase 4.1 字节级验收的硬编码 golden output。
+// 任何 Go 端输出变化都需同步更新(单元测试报错即知)。
+const expectedGoldenJSON = `{
   "env": {
     "CUSTOM_FLAG": "1",
     "ANTHROPIC_BASE_URL": "https://api.minimaxi.com/anthropic",
@@ -50,7 +47,7 @@ const expectedFromPython = `{
 }
 `
 
-func TestComposeAndSerialize_ByteDiffWithPython(t *testing.T) {
+func TestComposeAndSerialize_ByteDiffWithGolden(t *testing.T) {
 	notesJSON := `{
 		"base_url": "https://api.minimaxi.com/anthropic",
 		"profiles": {
@@ -72,8 +69,8 @@ func TestComposeAndSerialize_ByteDiffWithPython(t *testing.T) {
 	env := composeSettings(notes, token, "minimax_m3")
 	got := string(serializeSettings(env))
 
-	if got != expectedFromPython {
-		t.Fatalf("byte-diff with Python compose_settings.py FAILED\n--- GOT ---\n%s\n--- WANT ---\n%s", got, expectedFromPython)
+	if got != expectedGoldenJSON {
+		t.Fatalf("byte-diff with golden output FAILED\n--- GOT ---\n%s\n--- WANT ---\n%s", got, expectedGoldenJSON)
 	}
 }
 

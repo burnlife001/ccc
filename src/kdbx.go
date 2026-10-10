@@ -7,7 +7,7 @@
 //   3. readCredDpapi: 读 .kdbx_master.cred 并 CryptUnprotectData
 //   4. openAndUnlockKdbx: 解锁 kdbx 并解锁 protected entries
 //   5. findGroup: 递归找 cc 组
-//   6. composeSettings + serializeSettings: 1:1 复刻 compose_settings.py
+//   6. composeSettings + serializeSettings: 有序 env 字节级合成器(详见 Phase 4.1)
 //   7. LoadProfile / ListProfiles: 对外 API
 //
 // 字节级复刻原则 (Phase 4.1 验收):
@@ -65,7 +65,7 @@ func credPathFor(kdbxPath string) string {
 
 // ---------- 字节级复刻: 骨架 + allow ----------
 
-// skeletonEnv —— 与 compose_settings.py SKELETON_ENV 逐字相同,顺序也相同。
+// skeletonEnv —— 与 Phase 4.1 验收基准逐字相同,顺序也相同。
 // 顺序决定序列化输出,改这里就破坏 Phase 4.1 验收。
 var skeletonEnv = []struct{ K, V string }{
 	{"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", "1"},
@@ -77,7 +77,7 @@ var skeletonEnv = []struct{ K, V string }{
 	{"CLAUDE_CODE_AUTO_COMPACT_WINDOW", "500000"},
 }
 
-// allowList —— 与 compose_settings.py ALLOW 逐字相同。
+// allowList —— 与 Phase 4.1 验收基准 ALLOW 逐字相同。
 var allowList = []string{
 	"Bash", "Edit", "MultiEdit", "Write", "Read",
 	"Glob", "Grep", "LS", "WebFetch", "WebSearch", "Rm",
@@ -324,8 +324,9 @@ func findGroupInRoot(root *gokeepasslib.RootData, name string) *gokeepasslib.Gro
 
 // ---------- 字节级合成: composeSettings + serializeSettings ----------
 
-// composeSettings 1:1 移植 compose_settings.compose(notes, token, profile_name)。
-// 返回 env 的有序条目(顺序 = Python dict 插入序,见 todolist Phase 4)。
+// composeSettings 按注释/CLAUDE.md 的有序 env 规格合成 kdbx entry → settings env。
+// 返回 env 的有序条目,顺序固定为:extra_env → ANTHROPIC_BASE_URL → AUTH_TOKEN
+//   → DEFAULT_*_MODEL → MODEL → SKELETON_ENV(详见 Phase 4.1 验收)。
 //
 // 输入 notes 必须是已通过 json.Unmarshal 的 dict;prof 必须是 profiles[name] 的 dict;
 // 不再校验 schema(在 LoadProfile 入口已过滤)。
@@ -336,7 +337,7 @@ func composeSettings(notes map[string]any, token, profileName string) []envEntry
 
 	var env []envEntry
 
-	// 1. extra_env 最前(Python notes.get('extra_env') or {})
+	// 1. extra_env 最前(若 notes 含此 map 则按 Go map 顺序遍历)
 	if extra, ok := notes["extra_env"].(map[string]any); ok {
 		for k, v := range extra {
 			env = append(env, envEntry{K: k, V: toString(v)})
@@ -400,7 +401,7 @@ func serializeSettings(env []envEntry) []byte {
 }
 
 // toString JSON-decoded 值都成 any;统一转 string。
-// 数字/布尔: Python str() 等价;字符串: 原样。
+// 数字/布尔: 整数化以避免 "1.0" 这种尾零;字符串: 原样。
 func toString(v any) string {
 	switch x := v.(type) {
 	case string:

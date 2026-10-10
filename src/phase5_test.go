@@ -149,7 +149,7 @@ func TestStoreCred_HappyPath(t *testing.T) {
 	if len(data) == 0 {
 		t.Fatal("cred file empty")
 	}
-	// 内容应是合法 base64(与 Python 版格式一致:换行可,但每字符都在 base64 字符集)
+	// 内容应是合法 base64(标准字符集 + 空白可)
 	if _, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(data))); err != nil {
 		t.Fatalf("cred file not valid base64: %v\nraw=%q", err, data)
 	}
