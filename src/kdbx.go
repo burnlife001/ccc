@@ -37,8 +37,13 @@ import (
 
 // kdbxPath —— 只认 CCC_KDBX_PATH(由 <exeDir>/.env 或环境变量提供)。
 // 源码不硬编码任何机器路径;未设置时返回空串,由 openAndUnlockKdbx 报错。
+// 相对路径相对 <exeDir> 解析(而非进程 CWD),整个项目目录可随意搬动。
 func kdbxPath() string {
-	return os.Getenv("CCC_KDBX_PATH")
+	p := os.Getenv("CCC_KDBX_PATH")
+	if p != "" && !filepath.IsAbs(p) {
+		p = filepath.Join(exeDir(), p)
+	}
+	return p
 }
 
 // kdbxGroup —— 可被 CCC_KDBX_GROUP 覆盖。

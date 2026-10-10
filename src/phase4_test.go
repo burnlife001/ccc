@@ -241,6 +241,22 @@ func TestKdbxLoadError_WrapsContext(t *testing.T) {
 	}
 }
 
+// kdbxPath: 相对路径相对 exeDir 解析(项目整体搬动后仍命中);绝对路径原样。
+func TestKdbxPath_RelativeResolvesAgainstExeDir(t *testing.T) {
+	t.Setenv("CCC_KDBX_PATH", `..\kdbx\apikey.kdbx`)
+	got := kdbxPath()
+	want := filepath.Join(exeDir(), `..\kdbx\apikey.kdbx`)
+	if got != want {
+		t.Errorf("relative path: got %q, want %q", got, want)
+	}
+
+	abs := filepath.Join(t.TempDir(), "a.kdbx")
+	t.Setenv("CCC_KDBX_PATH", abs)
+	if got := kdbxPath(); got != abs {
+		t.Errorf("absolute path should pass through: got %q, want %q", got, abs)
+	}
+}
+
 // ----- .env 解析:注释/空行/引号/无等号行的处理 -----
 
 func TestParseDotEnv(t *testing.T) {
