@@ -293,7 +293,7 @@ func verifyKdbxPassword(kdbxPath, password string) error {
 }
 
 // findGroup 在组树中递归找 name 匹配的组。找不到返回 nil。
-// 对应 ps1 的 find_group 语义。
+// 历史语义与旧脚本同名函数一致(深度优先,名字匹配即返回)。
 func findGroup(g *gokeepasslib.Group, name string) *gokeepasslib.Group {
 	if g == nil {
 		return nil
