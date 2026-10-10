@@ -35,10 +35,6 @@ func profilesDir() string {
 	return filepath.Join(cccDir(), "profiles")
 }
 
-func sessionsFile() string {
-	return filepath.Join(cccDir(), "sessions.json")
-}
-
 // profilePath 返回 <exe>/.ccc/profiles/<name>.json。
 // cli / profiles 业务代码都从这里取,不在别处拼路径。
 func profilePath(name string) string {

@@ -1,6 +1,6 @@
 package main
 
-// cli.go —— 命令分发:version/list/which/<profile>/<profile>:continue。
+// cli.go —— 命令分发:version/list/which/<profile>(含 -c/-p 透传)。
 // 只组合 profiles/exec/paths 暴露的函数,不引入新逻辑。
 
 import (
@@ -58,7 +58,7 @@ func Dispatch(args []string) int {
 		return cmdWhich(args[1], args[2:])
 	}
 
-	// 默认:<profile> 或 <profile>:continue
+	// 默认:<profile>(含 -c/-p 透传)
 	return cmdProfile(args)
 }
 
@@ -195,21 +195,15 @@ func cmdWhich(profile string, userArgs []string) int {
 	})
 }
 
-// ----- profile / profile:continue 模式 -----
+// ----- profile 模式 -----
 
 // cmdProfile 解析形如:
 //
-//	ccc <profile> [args...]                    → 交互透传
-//	ccc <profile>:continue [args...]            → 续接上一会话(headless)
-//	ccc <profile> -p "task" [args...]           → headless 一次性
+//	ccc <profile> [args...]              → 交互透传
+//	ccc <profile> -p "task" [args...]     → headless 一次性
+//	ccc <profile> -c -p "task" [args...]  → headless,claude 自带 -c 续接上次会话
 func cmdProfile(args []string) int {
-	head := args[0]
-	continueMode := false
-	profile := head
-	if i := strings.LastIndex(head, ":"); i > 0 && strings.HasSuffix(head, ":continue") {
-		profile = head[:i]
-		continueMode = true
-	}
+	profile := args[0]
 
 	ref, err := resolveProfile(profile)
 	if err != nil {
@@ -230,19 +224,6 @@ func cmdProfile(args []string) int {
 		fmt.Fprintln(os.Stderr, promptErr)
 		return 2
 	}
-	// continue 模式强制 headless
-	if continueMode {
-		headless = true
-		if !hasPromptFlag(rest) {
-			// continue 可不带 -p(裸启动也走 headless)
-			promptIdx = -1
-		}
-	}
-
-	if continueMode && !headless {
-		// 防止 headless=false 漏掉 continue 标记
-		headless = true
-	}
 
 	if !headless {
 		// 交互模式:整组透传给 claude
@@ -256,24 +237,11 @@ func cmdProfile(args []string) int {
 		})
 	}
 
-	// headless 模式
+	// headless 模式(-c 由 claude 自行处理,这里只透传)
 	return runOrExit(func() error {
 		resolve, prefix, err := findClaude()
 		if err != nil {
 			return err
-		}
-		// 续接 → 取 session_id
-		var sessionID string
-		if continueMode {
-			sid, err := loadSession(profile)
-			if err != nil {
-				return fmt.Errorf("load sessions: %w", err)
-			}
-			if sid == "" {
-				return fmt.Errorf("ccc: no previous session for profile %q; "+
-					"run `ccc %s -p \"task\"` first", profile, profile)
-			}
-			sessionID = sid
 		}
 		// 重组 UserArgs:把 -p 提到最前(顺序与 headless-executor.ts 对齐),剩余原样追加
 		userArgs := arrangeHeadlessArgs(rest, promptIdx)
@@ -281,8 +249,6 @@ func cmdProfile(args []string) int {
 		args := assembleArgs(ExecOptions{
 			SettingsPath: ref.Path,
 			Headless:     true,
-			Resume:       continueMode,
-			SessionID:    sessionID,
 			UserArgs:     userArgs,
 		})
 		res, err := spawnHeadless(resolve, prefix, args)
@@ -292,12 +258,6 @@ func cmdProfile(args []string) int {
 		// 把纯文本回复打到 stdout
 		if res.Text != "" {
 			io.WriteString(os.Stdout, res.Text)
-		}
-		// 落盘 session_id(即使非 continue 模式也存,方便下次 resume)
-		if res.SessionID != "" {
-			if err := saveSession(profile, res.SessionID); err != nil {
-				fmt.Fprintln(os.Stderr, "ccc: warn: save session:", err)
-			}
 		}
 		if res.ExitCode != 0 {
 			// 透传非零退出码 —— 用 error 包装,避免直接 os.Exit 跳过外层 defer (临时文件)
@@ -322,16 +282,6 @@ func detectPrompt(args []string) (headless bool, idx int, err error) {
 		}
 	}
 	return false, -1, nil
-}
-
-func hasPromptFlag(args []string) bool {
-	for _, a := range args {
-		if a == "-p" || a == "--prompt" ||
-			strings.HasPrefix(a, "-p=") || strings.HasPrefix(a, "--prompt=") {
-			return true
-		}
-	}
-	return false
 }
 
 // arrangeHeadlessArgs 把 -p/-p= 提到最前,其余原序追加。
@@ -388,17 +338,16 @@ func quoteArg(s string) string {
 // ----- 使用说明 -----
 
 func printUsage(w io.Writer) {
-	fmt.Fprintln(w, `ccc — Go single-exe replacement for ccs.
-
-Usage:
-  ccc <profile> [args...]                spawn interactive claude with profile
-  ccc <profile> -p "task" [args...]       headless single-turn (-p required)
-  ccc <profile>:continue [args...]        headless, resuming last session
-  ccc list                                list installed profiles
-  ccc which <profile> [args...]           print the spawn command line
-  ccc version                             print version
-  ccc help                                this message
-
-Profiles live in: `+profilesDir()+`\<name>.json  (与 ccc.exe 同级的 .ccc/)
-Sessions live in: `+sessionsFile())
+	fmt.Fprintln(w, "ccc — Go single-exe replacement for ccs.")
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "Usage:")
+	fmt.Fprintln(w, "  ccc <profile> [args...]                spawn interactive claude with profile")
+	fmt.Fprintln(w, "  ccc <profile> -p \"task\" [args...]       headless single-turn (-p required)")
+	fmt.Fprintln(w, "  ccc <profile> -c -p \"task\" [args...]    headless, claude -c 续接上次会话")
+	fmt.Fprintln(w, "  ccc list                                list installed profiles")
+	fmt.Fprintln(w, "  ccc which <profile> [args...]           print the spawn command line")
+	fmt.Fprintln(w, "  ccc version                             print version")
+	fmt.Fprintln(w, "  ccc help                                this message")
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "Profiles live in: "+profilesDir()+`\<name>.json  (与 ccc.exe 同级的 .ccc/)`)
 }

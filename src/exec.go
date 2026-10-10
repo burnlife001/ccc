@@ -18,17 +18,14 @@ import (
 // 抽出来便于纯函数测试(go架构规范 §6)。
 type ExecOptions struct {
 	SettingsPath string   // --settings 的绝对路径
-	Headless     bool     // true → 加 stream-json、解析 session_id
-	Resume       bool     // true → 加 --resume <sessionId>(与 Headless 配套)
-	SessionID    string   // --resume 的值
+	Headless     bool     // true → 加 stream-json、解析 text
 	UserArgs     []string // 用户透传参数,原样追加
 }
 
 // ExecResult 描述一次 headless 调用的产出。
 type ExecResult struct {
-	ExitCode  int
-	SessionID string // 解析到的 session_id(若有)
-	Text      string // 拼好的纯文本回复
+	ExitCode int
+	Text     string // 拼好的纯文本回复
 }
 
 // assembleArgs 是"参数组装"的纯函数,不发起 spawn。
@@ -36,7 +33,7 @@ type ExecResult struct {
 //
 // 约定:
 //   - 调用方决定是否传 -p <prompt>(放 UserArgs 最前)。
-//   - 本函数只负责"claude 启动旗标 + settings + stream-json + resume + 透传"。
+//   - 本函数只负责"claude 启动旗标 + settings + stream-json + 透传"。
 //   - 旗标顺序与 headless-executor.ts 保持一致,便于交叉核对。
 func assembleArgs(opts ExecOptions) []string {
 	var args []string
@@ -45,9 +42,6 @@ func assembleArgs(opts ExecOptions) []string {
 	}
 	if opts.Headless {
 		args = append(args, "--output-format", "stream-json", "--verbose")
-	}
-	if opts.Resume && opts.SessionID != "" {
-		args = append(args, "--resume", opts.SessionID)
 	}
 	args = append(args, opts.UserArgs...)
 	return args
@@ -135,12 +129,14 @@ func spawnInteractive(resolve string, prefix, args []string) error {
 	return nil
 }
 
-// spawnHeadless 用 stream-json 模式跑;收集 stdout 解析、stderr 直传用户。
+// spawnHeadless 用 stream-json 模式跑;收集 stdout 解析、stderr 过滤后直传。
 // 退出码透传。session_id 由 cli 层决定是否落盘。
 func spawnHeadless(resolve string, prefix, args []string) (ExecResult, error) {
 	cmd := buildCmd(resolve, prefix, args)
-	cmd.Stderr = os.Stderr // 进度/报错直传,免得用户看不到 claude 原生错误
-	cmd.Stdin = os.Stdin   // 保留,以防后续 pipe 输入
+	// 收 stderr,等子进程退出后过滤再回写,避免和 stream-json 输出交杂
+	var stderrBuf bytes.Buffer
+	cmd.Stderr = &stderrBuf
+	cmd.Stdin = os.Stdin // 保留,以防后续 pipe 输入
 	cmd.Env = strippedAnthropicEnv()
 
 	// cmd.Output() 内部用 os.Pipe + 标准库 goroutine 拷贝,
@@ -154,6 +150,7 @@ func spawnHeadless(resolve string, prefix, args []string) (ExecResult, error) {
 			exitCode = ee.ExitCode()
 		} else {
 			// spawn 失败(claude 没起来),Output() 仍可能返回部分输出
+			flushStderr(&stderrBuf)
 			return ExecResult{
 				ExitCode: 1,
 				Text:     string(stdoutAll),
@@ -161,12 +158,30 @@ func spawnHeadless(resolve string, prefix, args []string) (ExecResult, error) {
 		}
 	}
 
-	sessionID, textBuf := parseStreamJSON(stdoutAll)
+	flushStderr(&stderrBuf)
+	textBuf := parseStreamJSON(stdoutAll)
 	return ExecResult{
-		ExitCode:  exitCode,
-		SessionID: sessionID,
-		Text:      textBuf.String(),
+		ExitCode: exitCode,
+		Text:     textBuf.String(),
 	}, nil
+}
+
+// flushStderr 把子进程 stderr 回写给用户;逐行过滤已知无害警告。
+// 已知要过滤:[claude-code:unrecognized_model] — 自定义 model 名触发的无害告警,
+// 重复刷屏但不影响调用。其它行原样回写(用户该看到的错误还得看到)。
+func flushStderr(buf *bytes.Buffer) {
+	if buf.Len() == 0 {
+		return
+	}
+	scanner := bufio.NewScanner(buf)
+	scanner.Buffer(make([]byte, 0, 64*1024), 64*1024)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "[claude-code:unrecognized_model]") {
+			continue
+		}
+		fmt.Fprintln(os.Stderr, line)
+	}
 }
 
 // buildCmd 拼接 exec.Cmd,prefix 与 args 拼在 resolve 之后。
@@ -185,7 +200,6 @@ func buildCmd(resolve string, prefix, args []string) *exec.Cmd {
 type streamEvent struct {
 	Type    string          `json:"type"`
 	Subtype string          `json:"subtype"`
-	Session string          `json:"session_id"`
 	Message json.RawMessage `json:"message,omitempty"`
 }
 
@@ -212,9 +226,9 @@ func assistantText(msgRaw json.RawMessage) string {
 	return sb.String()
 }
 
-// parseStreamJSON 逐行解析;抓首个 session_id,拼装所有 assistant text。
+// parseStreamJSON 逐行解析;拼装所有 assistant text。
 // 当 assistant 没有任何 text 输出时,回退到 result.result。
-func parseStreamJSON(data []byte) (sessionID string, text bytes.Buffer) {
+func parseStreamJSON(data []byte) (text bytes.Buffer) {
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	// 单行可能很大(一次 assistant 全部 content);放宽上限到 8MB。
 	scanner.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
@@ -226,9 +240,6 @@ func parseStreamJSON(data []byte) (sessionID string, text bytes.Buffer) {
 		var ev streamEvent
 		if err := json.Unmarshal(line, &ev); err != nil {
 			continue // 不可解析行忽略(可能含进度前缀等),不致命
-		}
-		if sessionID == "" && ev.Session != "" {
-			sessionID = ev.Session
 		}
 		switch ev.Type {
 		case "assistant":
@@ -248,64 +259,10 @@ func parseStreamJSON(data []byte) (sessionID string, text bytes.Buffer) {
 			}
 		}
 	}
-	return sessionID, text
+	return text
 }
 
 // isWindows —— 通过路径分隔符判断(避免直接依赖 runtime.GOOS 文本)。
 func isWindows() bool {
 	return os.PathSeparator == '\\' && os.PathListSeparator == ';'
-}
-
-// saveSession 写入 <exe>/.ccc/sessions.json { profileName: sessionID }。
-// 目录不存在时创建。原子写入(写 .tmp 后 rename)。
-// 文件不存在或为空时初始化为 {};JSON 损坏时整体替换(止损)。
-func saveSession(profile, sessionID string) error {
-	if sessionID == "" {
-		return nil
-	}
-	if err := ensureCccDirs(); err != nil {
-		return err
-	}
-	p := sessionsFile()
-	m := map[string]string{}
-	data, err := os.ReadFile(p)
-	switch {
-	case err == nil && len(data) > 0:
-		if jerr := json.Unmarshal(data, &m); jerr != nil {
-			_ = os.Rename(p, p+".corrupt")
-			m = map[string]string{}
-		}
-	case err != nil && !errors.Is(err, os.ErrNotExist):
-		return err
-	}
-	m[profile] = sessionID
-	out, err := json.MarshalIndent(m, "", "  ")
-	if err != nil {
-		return err
-	}
-	tmp := p + ".tmp"
-	if err := os.WriteFile(tmp, out, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, p)
-}
-
-// loadSession 取 profile 的 session_id;不存在或文件损坏返回空串。
-func loadSession(profile string) (string, error) {
-	p := sessionsFile()
-	data, err := os.ReadFile(p)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return "", nil
-		}
-		return "", err
-	}
-	if len(data) == 0 {
-		return "", nil
-	}
-	m := map[string]string{}
-	if err := json.Unmarshal(data, &m); err != nil {
-		return "", nil // 损坏视作空
-	}
-	return m[profile], nil
 }

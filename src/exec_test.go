@@ -38,26 +38,6 @@ func TestAssembleArgs(t *testing.T) {
 			want: []string{"--settings", "p.json", "--output-format", "stream-json", "--verbose", "-p", "task"},
 		},
 		{
-			name: "resume_with_session",
-			opts: ExecOptions{
-				SettingsPath: "p.json",
-				Resume:       true,
-				SessionID:    "abc-123",
-				UserArgs:     []string{"-p", "continue"},
-			},
-			want: []string{"--settings", "p.json", "--resume", "abc-123", "-p", "continue"},
-		},
-		{
-			name: "resume_no_session_skips_flag",
-			opts: ExecOptions{
-				SettingsPath: "p.json",
-				Resume:       true,
-				SessionID:    "",
-				UserArgs:     []string{"-p", "continue"},
-			},
-			want: []string{"--settings", "p.json", "-p", "continue"},
-		},
-		{
 			name: "no_settings",
 			opts: ExecOptions{UserArgs: []string{"--help"}},
 			want: []string{"--help"},
