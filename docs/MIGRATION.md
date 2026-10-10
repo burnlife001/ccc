@@ -95,9 +95,9 @@ ls dst/.ccc/profiles/
 | `ccs <name> -p "任务"` | `ccc <name> -p "任务"` | 完全一致;stream-json 自动剥成纯文本 |
 | `ccs <name>:continue -p "..."` | `ccc <name>:continue -p "..."` | 完全一致 |
 | `ccs list` | `ccc list` | 完全一致 |
-| `ccs add <name>` | `ccc add <name>` | 模板字段名/层级一致 |
-| `ccs rm <name>` | `ccc rm <name>` | 完全一致 |
 | `ccs which <name>` | `ccc which <name>` | 完全一致 |
+| `ccs add <name>` | ❌ 无 | ccc 不做交互式生成；profile 只从 kdbx 合成或手动放进 `dst/.ccc/profiles/` |
+| `ccs rm <name>` | ❌ 无 | ccc 不删 profile；要清理本地 profile 直接删文件，kdbx 源去 kdbx 改 |
 | `ccs config` | ❌ 无 | ccc 不需要(无配置目录,只有 profile 文件) |
 | `ccs doctor` | ❌ 无 | 出问题直接看 `ccc which <name>` 拼出来的命令 |
 | `ccs proxy` | ❌ 无 | ccc 不做 OpenAI 兼容代理 |

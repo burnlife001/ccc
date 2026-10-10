@@ -1,10 +1,10 @@
 # ccc
 
-> Claude Code profile switcher · Go 单文件 exe · 零运行时依赖
+> Claude Code profile switcher · Go 单文件 exe · 零运行时依赖 · kdbx 直读 · token 永不落盘
 
-把多个 Claude Code 配置（不同 base_url / token / model）存成一份份 profile json,
-一个 `ccc <profile>` 就能切到对应模型启动。零字段校验,profile 文件就是 `--settings`,
-复制即迁移。
+把多个 Claude Code 配置(不同 base_url / token / model)存进 KeePass `.kdbx`,
+`ccc <profile>` 直接从 kdbx 解密并注入启动。**明文 token 永不落盘。**
+也支持本地手动放置 profile json 作为 fallback。
 
 ---
 
@@ -15,6 +15,7 @@
 - [快速开始](#快速开始)
 - [八个命令](#八个命令)
 - [Profile JSON 字段说明](#profile-json-字段说明)
+- [kdbx 直读机制](#kdbx-直读机制)
 - [完整示例](#完整示例)
 - [常见问题](#常见问题)
 - [迁移自旧版 ccs](#迁移自旧版-ccs)
@@ -25,10 +26,11 @@
 
 | 痛点 | ccc 的做法 |
 |---|---|
-| 手改环境变量切 base_url/token | profile 文件,一份对应一个模型 |
-| 切换时要拼接 `--settings ~/.xxx/yyy.json` | `ccc <name>` 一行搞定 |
+| 手改环境变量切 base_url/token | profile 存 kdbx,`ccc <name>` 一行搞定 |
+| 切换时要拼接 `--settings ~/.xxx/yyy.json` | 自动从 kdbx 合成,用户无感知 |
 | 子 shell 残留 `ANTHROPIC_*` 污染 | spawn 前自动剥掉父进程所有 `ANTHROPIC_*` |
-| npm/Node 包要装运行时 | 单个 exe,< 10 MB,无需 Go/Node/Python |
+| npm/Node 包要装运行时 | 单个 exe,< 6 MB,无需 Go/Node/Python |
+| **token 明文 json 散落各处** | **kdbx 是唯一真相,内存解密,临时文件,用完即删** |
 | 想调试最终跑了什么命令 | `ccc which <name>` 打印完整命令行 |
 
 不做的事(刻意):不建 account 隔离目录、不改写 `CLAUDE_CONFIG_DIR`、不注入 MCP/hook、不写 `~/.claude/`、不起守护进程。
@@ -42,6 +44,7 @@
 - Windows 11
 - Claude Code CLI 已装好(`claude --version` 能跑)
 - Go ≥ 1.22(仅编译时需要,运行时不依赖)
+- **必需**:一份 KeePass `.kdbx`,主密码已存进 Windows Credential Manager(target=`apikey_kdbx_master`)
 
 ### 三步装好
 
@@ -50,7 +53,7 @@
 git clone https://github.com/burnlife001/ccc.git
 cd ccc
 
-# 2. 编译(产物在 dst/,单 exe 约 2.5 MB,不安装、不改 PATH)
+# 2. 编译(产物在 dst/,单 exe 约 4 MB,不安装、不改 PATH)
 ./build.ps1
 
 # 3. 验证
@@ -69,28 +72,59 @@ cd ccc
 dst/
 ├── ccc.exe
 └── .ccc/
-    ├── profiles/<name>.json   # profile 文件
-    └── sessions.json          # :continue 用的 session_id
+    ├── profiles/<name>.json   # 本地手动放置的 profile(fallback/调试用,可选)
+    └── sessions.json          # :continue 用的 session_id(不含 token,安全)
 ```
 
-exe 和数据同生命期,整个 `dst/` 目录拷走即可搬运。`dst/.ccc/` 已在 `.gitignore`(里面是明文 token,永不入库)。
+exe 和数据同生命期,整个 `dst/` 目录拷走即可搬运。`dst/.ccc/` 已在 `.gitignore`。
 测试要隔离数据时设 `CCC_HOME=<目录>`,`.ccc/` 就会落到那个目录下。
+
+**注意**:`profiles/` 目录是**可选的**。没有它,ccc 也能跑——所有 profile 都从 kdbx 读。
 
 ---
 
 ## 快速开始
 
-把最小化的 profile 文件丢到 `dst/.ccc/profiles/` 就能用。
+### 前提:kdbx 里已有数据
+
+你的 `.kdbx` 里应该有一个组叫 `cc`,组里每条 entry 是一个供应商(如 `minimax`、`kimi`):
+
+| kdbx 字段 | 含义 |
+|---|---|
+| `title` | 供应商名(如 `minimax`),只是标签 |
+| `password` | 该供应商的 API token |
+| `notes` | **ccp-v1 格式的 JSON**,声明 `base_url` + `profiles{}`(每个 profile 对应一份模型配置) |
+
+notes 示例:
+
+```json
+{
+  "base_url": "https://api.minimaxi.com/anthropic",
+  "profiles": {
+    "minimax_m3":           { "model": "MiniMax-M3" },
+    "minimax_m3_highspeed": { "model": "MiniMax-M3-highspeed" }
+  }
+}
+```
+
+这条 entry 会展开成 2 个可用 profile:`minimax_m3` 和 `minimax_m3_highspeed`。
+
+### 存主密码(只需一次)
+
+```powershell
+pwsh -File E:\__work\__frequently\personal_data\apikey\decrypt\cc_switcher\test_kdbx_master_cred.ps1 -Mode Store
+```
+
+### 使用
 
 ```bash
-# 假设你已经有 ~/.ccs/settings_minimax_m3.json(从旧版 ccs 复制过来)
-mkdir -p dst/.ccc/profiles
-cp ~/.ccs/settings_minimax_m3.json dst/.ccc/profiles/minimax_m3.json
+# 列出所有可用 profile(本地 + kdbx)
+./dst/ccc.exe list
 
 # 启动交互式会话
 ./dst/ccc.exe minimax_m3
 
-# 一句话任务
+# 单轮任务
 ./dst/ccc.exe minimax_m3 -p "你好"
 ```
 
@@ -98,15 +132,13 @@ cp ~/.ccs/settings_minimax_m3.json dst/.ccc/profiles/minimax_m3.json
 
 ---
 
-## 八个命令
+## 六个命令
 
 ```
 ccc <profile>           # 启动交互式 claude 会话
 ccc <profile> -p "任务" # 单轮 headless 任务
 ccc <profile>:continue  # 继续上一次的会话(读取上次存的 session_id)
-ccc list                # 列出所有 profile
-ccc add <name>          # 交互式生成新 profile
-ccc rm <name>           # 删除 profile
+ccc list                # 列出所有 profile(本地 + kdbx)
 ccc which <profile>     # 打印将执行的命令(调试用,不实际启动)
 ccc version             # 输出版本号
 ```
@@ -119,11 +151,15 @@ ccc version             # 输出版本号
 ccc minimax_m3
 ```
 
-- 找到 `dst/.ccc/profiles/minimax_m3.json` → 校验"存在 + 合法 JSON"
-- 拼出 `claude --settings <绝对路径> [你传的任何参数...]`
+**查找顺序**:
+1. 本地 `dst/.ccc/profiles/minimax_m3.json` — 存在则直接用
+2. kdbx `cc` 组 — 遍历每条 entry 的 `notes.profiles{}`,找到 key 为 `minimax_m3` 的那条,**内存合成 settings JSON**,写入临时文件
+
+- 拼出 `claude --settings <临时文件路径> [你传的任何参数...]`
 - spawn 前**剥掉**父进程所有 `ANTHROPIC_*` 环境变量(防嵌套污染)
 - stdio 全部 inherit(支持 `echo 测试 | ccc minimax_m3`)
 - 退出码透传:Claude Code 的退出码就是 ccc 的退出码
+- claude 退出后,**临时文件立即删除**
 
 #### 2. `ccc <profile> -p "任务"` — 单轮 headless
 
@@ -154,43 +190,33 @@ ccc list
 输出:
 
 ```
-minimax_m3 → E:\__work\__github\ccc\dst\.ccc\profiles\minimax_m3.json
-test_p     → E:\__work\__github\ccc\dst\.ccc\profiles\test_p.json
+[local]  test_p          → E:\__work\__github\ccc\dst\.ccc\profiles\test_p.json
+[kdbx]   minimax_m3      → kdbx:cc/minimax (notes.profiles.minimax_m3)
+[kdbx]   minimax_m3_hs   → kdbx:cc/minimax (notes.profiles.minimax_m3_highspeed)
 ```
 
-#### 5. `ccc add <name>`
+同名时 local 优先,标 `[override]`:
 
 ```
-ccc add my_gpt
+[override] minimax_m3    → E:\__work\__github\ccc\dst\.ccc\profiles\minimax_m3.json (shadows kdbx:cc/minimax)
 ```
 
-进入交互式提问(顺序):
-
-1. `base_url`(默认 `https://api.minimaxi.com/anthropic`)
-2. `token`(留空 = 依次从 `$ANTHROPIC_AUTH_TOKEN` / `$ANTHROPIC_API_KEY` 环境变量读)
-3. `model`(默认 `MiniMax-M3`)
-
-生成 `dst/.ccc/profiles/my_gpt.json`(模板见 [完整示例](#完整示例))。
-
-#### 6. `ccc rm <name>`
-
-```
-ccc rm test_p
-```
-
-- 删 `dst/.ccc/profiles/test_p.json`
-- 不存在 → 报错 `profile not found: test_p`,exit code ≠ 0,不删错文件
-
-#### 7. `ccc which <profile>` — 调试利器
+#### 5. `ccc which <profile>` — 调试利器
 
 ```
 ccc which minimax_m3
 ```
 
-输出完整命令行,**路径全是绝对路径**(无 `~`、无相对路径):
+输出完整命令行,**路径全是绝对路径**:
 
+本地源:
 ```
 "C:\Users\yg\.local\bin\claude.exe" "--settings" "E:\__work\__github\ccc\dst\.ccc\profiles\minimax_m3.json"
+```
+
+kdbx 源:
+```
+[kdbx]  "C:\Users\yg\.local\bin\claude.exe" "--settings" "C:\Users\yg\AppData\Local\Temp\ccc-settings-123456789.json"
 ```
 
 支持透传参数:
@@ -202,8 +228,16 @@ ccc which minimax_m3 --max-turns 5
 →
 
 ```
-"C:\Users\yg\.local\bin\claude.exe" "--settings" "E:\__work\__github\ccc\dst\.ccc\profiles\minimax_m3.json" "--max-turns" 5
+[kdbx]  "C:\Users\yg\.local\bin\claude.exe" "--settings" "C:\Users\yg\AppData\Local\Temp\ccc-settings-123456789.json" "--max-turns" 5
 ```
+
+#### 6. `ccc version`
+
+```
+ccc version
+```
+
+输出 `ccc 0.1.0` 这种语义化版本号。
 
 ---
 
@@ -214,7 +248,7 @@ ccc **不做字段校验**——profile 文件就是 `--settings` 的内容,Clau
 | 路径 | 含义 | 示例值 | 备注 |
 |---|---|---|---|
 | `env.ANTHROPIC_BASE_URL` | Anthropic 兼容 API 的 base URL | `https://api.minimaxi.com/anthropic` | 切模型必改 |
-| `env.ANTHROPIC_AUTH_TOKEN` | API key(token) | `sk-cp-xxxxxxxxxxxx` | **会落盘**,文件权限请自己管 |
+| `env.ANTHROPIC_AUTH_TOKEN` | API key(token) | `sk-cp-xxxxxxxxxxxx` | **kdbx 源时永不落盘** |
 | `env.ANTHROPIC_MODEL` | 当前使用的模型 | `MiniMax-M3` | |
 | `env.ANTHROPIC_DEFAULT_HAIKU_MODEL` | 小模型覆盖 | `MiniMax-M3` | 可选 |
 | `env.ANTHROPIC_DEFAULT_OPUS_MODEL` | 大模型覆盖 | `MiniMax-M3-highspeed` | 可选 |
@@ -234,19 +268,81 @@ ccc **不做字段校验**——profile 文件就是 `--settings` 的内容,Clau
 
 ---
 
+## kdbx 直读机制
+
+### 为什么这样设计
+
+传统方案:token 明文存在 json 里,一份 profile 一份 token,难管、难轮换、易泄露。
+
+ccc 方案:**kdbx 是唯一真相**。token 只在 kdbx 里存一份(强加密),ccc 启动时:
+1. 从 Windows Credential Manager 取主密码
+2. 解密 kdbx,找到对应 entry
+3. **内存中合成**完整 settings JSON(含 token)
+4. 写入**临时文件**(0600,仅当前用户可读)
+5. spawn claude,传临时文件路径
+6. claude 退出后,**立即删除临时文件**
+
+**明文 token 在磁盘上的存活时间 = claude 单次运行的时间。** 进程退出,文件消失。
+
+### 性能
+
+kdbx 解密有固定开销(~200–500 ms,KDF 计算)。对交互式启动可接受;对 `-p` 高频调用(如自动化脚本)会明显变慢。
+
+**高频场景建议**:把 profile JSON 手动放到 `dst/.ccc/profiles/`(明文),作为 fallback。kdbx 是主源,本地是缓存。
+
+### 离线场景
+
+kdbx 文件所在盘未挂载时:
+- 本地 `profiles/` 里有同名 profile → 自动用本地
+- 没有 → 报错明确提示"kdbx 不可达,可用本地 profile 或检查路径"
+
+### 安全边界
+
+| 威胁 | 防护 |
+|---|---|
+| 误 commit 到 git | ✅ `dst/.ccc/` gitignored;临时文件在 `%TEMP%` |
+| 其它 Windows 用户读 | ✅ 临时文件 0600;kdbx 本身有 ACL |
+| 恶意软件同用户扫盘 | ❌ 同用户进程都能读——这是 Windows 桌面环境的物理上限 |
+| 磁盘被拔走克隆 | ❌ 同上;建议全盘 BitLocker |
+
+---
+
 ## 完整示例
 
-文件路径:`E:\__work\__github\ccc\dst\.ccc\profiles\minimax_m3.json`
+### kdbx 里的 entry
+
+```
+Title:    minimax
+Password: sk-cp-xxxxxxxxxxxx
+Notes:
+{
+  "base_url": "https://api.minimaxi.com/anthropic",
+  "profiles": {
+    "minimax_m3": {
+      "model": "MiniMax-M3",
+      "haiku": "MiniMax-M3",
+      "opus": "MiniMax-M3-highspeed",
+      "sonnet": "MiniMax-M3"
+    }
+  },
+  "extra_env": {
+    "CUSTOM_FLAG": "1"
+  }
+}
+```
+
+### ccc 合成的 settings JSON(内存中,不落盘)
 
 ```json
 {
   "env": {
-    "ANTHROPIC_AUTH_TOKEN": "sk-cp-REDACTED-EXAMPLE",
+    "ANTHROPIC_AUTH_TOKEN": "sk-cp-xxxxxxxxxxxx",
     "ANTHROPIC_BASE_URL": "https://api.minimaxi.com/anthropic",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": "MiniMax-M3",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "MiniMax-M3-highspeed",
     "ANTHROPIC_DEFAULT_SONNET_MODEL": "MiniMax-M3",
     "ANTHROPIC_MODEL": "MiniMax-M3",
+    "CUSTOM_FLAG": "1",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
     "DISABLE_TELEMETRY": "1",
     "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
@@ -263,24 +359,30 @@ ccc **不做字段校验**——profile 文件就是 `--settings` 的内容,Clau
 }
 ```
 
-> ⚠️ **安全**
-> - token 是明文 JSON,文件权限请自己管。Windows 上文件默认只对当前用户可读。
-> - profile 文件在 `dst/.ccc/` 下,该目录已整体进 `.gitignore`——但**别手动把它加回来**,也别把 profile 复制到仓库其它位置。
-> - 想用环境变量而不是落盘?删掉 `ANTHROPIC_AUTH_TOKEN` 那一行,Claude Code 会自己从 `ANTHROPIC_AUTH_TOKEN` 环境变量读——但 ccc spawn 前会**剥掉**父进程的这个变量,所以请走 Claude Code 自己识别的机制。
+### 本地 fallback profile(可选)
 
-完整使用流程:
+文件路径:`E:\__work\__github\ccc\dst\.ccc\profiles\minimax_m3.json`
+
+内容同上,但**明文落盘**。用于:
+- 离线场景(kdbx 不在)
+- 高频 `-p` 调用(省 kdbx 解密开销)
+- 调试/实验
+
+> ⚠️ **安全**
+> - 本地 profile 是**明文**;从 kdbx 解密到临时文件时已设 `0600`,手动放入的 profile 请自行保证权限。
+> - `dst/.ccc/` 已整体进 `.gitignore`——但**别手动把它加回来**。
+> - 更稳的做法是只用 kdbx:token 只在 kdbx 里存一份,内存解密,用完即删。
+
+### 完整使用流程
 
 ```bash
-# 1. 把文件存好
-mkdir -p dst/.ccc/profiles
-cat > dst/.ccc/profiles/minimax_m3.json <<'EOF'
-{ ... 上面的内容 ... }
-EOF
+# 1. 列出所有 profile
+./dst/ccc.exe list
+# [kdbx]   minimax_m3      → kdbx:cc/minimax (notes.profiles.minimax_m3)
 
 # 2. 看命令对不对(不实际启动)
 ./dst/ccc.exe which minimax_m3
-# 输出:
-# "C:\Users\yg\.local\bin\claude.exe" "--settings" "E:\__work\__github\ccc\dst\.ccc\profiles\minimax_m3.json"
+# [kdbx]  "C:\Users\yg\.local\bin\claude.exe" "--settings" "C:\...\Temp\ccc-settings-....json"
 
 # 3. 进交互
 ./dst/ccc.exe minimax_m3
@@ -289,6 +391,11 @@ EOF
 # 4. 单轮
 ./dst/ccc.exe minimax_m3 -p "只回 OK"
 # OK
+
+# 5. 续接
+./dst/ccc.exe minimax_m3 -p "记住数字 8741,只回'收到'"
+./dst/ccc.exe minimax_m3:continue -p "我让你记的数字?"
+# 8741
 ```
 
 ---
@@ -303,27 +410,45 @@ ccc 不安装、不改 PATH,产物就是仓库里的 `dst/ccc.exe`。两种解�
 
 ### `profile not found: xxx`
 
-- 文件不存在于 `dst/.ccc/profiles/xxx.json`(即与 ccc.exe 同级的 `.ccc/profiles/`)
+- 本地 `dst/.ccc/profiles/xxx.json` 不存在
+- kdbx `cc` 组里也没有 `profiles{}` 的 key 为 `xxx` 的 entry
 - 用 `ccc list` 看现有名字
-- 文件名大小写敏感(Windows 默认不敏感,但 ccc 走文件系统,会按你写的大小写存)
 
 ### 父进程的 `ANTHROPIC_AUTH_TOKEN` 没生效?
 
-这是**故意的**。ccc 在 spawn 之前会清掉父进程所有 `ANTHROPIC_*` 变量,这样 profile 里的值不会被嵌套污染。`/status` 里看到的 token 一定来自 profile 文件,不是你的 shell 环境变量。
+这是**故意的**。ccc 在 spawn 之前会清掉父进程所有 `ANTHROPIC_*` 变量,这样 profile 里的值不会被嵌套污染。`/status` 里看到的 token 一定来自 kdbx(或本地 profile 文件),不是你的 shell 环境变量。
 
-### 6.x 验收的 `-p` 输出是乱码?
+### `ccc` 报 `CRED_NOT_FOUND`
 
-正常情况下不会。ccc 内部会剥掉 stream-json 信封输出纯文本。如果你看到 `{"type":"assistant",...}` 这种 JSON,说明上游 `-p` 的实现还没合上,请检查 `docs/ccs验收标准.md` P1 第 6 节。
+主密码没存进 Windows Credential Manager。跑一次:
+
+```powershell
+pwsh -File E:\__work\__frequently\personal_data\apikey\decrypt\cc_switcher\test_kdbx_master_cred.ps1 -Mode Store
+```
+
+### `ccc` 报 `kdbx: bad credentials`
+
+Credential 里存的密码跟 kdbx 当前密码不一致了——可能你最近改过 kdbx 主密码。重新跑一次上面的 `-Mode Store`。
+
+### `ccc` 报 `kdbx: group "cc" not found`
+
+你的 kdbx 里没有叫 `cc` 的组。检查 kdbx 结构,或设 `CCC_KDBX_GROUP=<你的组名>`。
 
 ### 想看 ccc 实际跑了什么命令?
 
 `ccc which <profile>` 打印完整命令行,带绝对路径。
 
+### 老的 `cc_switcher_kdbx.ps1` 还要吗
+
+不用了。ccc 已接管所有职责;老脚本在原路径留作参考实现,不再维护。
+
 ---
 
 ## 迁移自旧版 ccs
 
-如果你已经在用 TypeScript 版 ccs(`E:/__work/__github/ccs/`),所有 profile json 是**字节级兼容**的——直接复制即可,不用改任何字段。
+如果你已经在用 TypeScript 版 ccs(`E:/__work/__github/ccs/`),所有 profile json 是**字节级兼容**的——直接复制到 `dst/.ccc/profiles/` 即可作为本地 fallback 用,不用改任何字段。
+
+但推荐做法是把 token 收进 kdbx,享受"永不落盘"的好处。
 
 详见 [docs/MIGRATION.md](docs/MIGRATION.md)。
 
@@ -335,13 +460,14 @@ ccc 不安装、不改 PATH,产物就是仓库里的 `dst/ccc.exe`。两种解�
 ccc/
 ├── src/
 │   ├── main.go        # 唯一入口:错误处理 + 退出码
-│   ├── cli.go         # 命令分发:7 个子命令 + 透传分支
-│   ├── exec.go        # 唯一允许 exec.Command 的文件
-│   ├── profiles.go    # profile 文件读写(纯文件操作)
-│   └── paths.go       # 路径常量集中
+│   ├── cli.go         # 命令分发:8 个子命令 + 透传分支
+│   ├── exec.go        # 唯一允许 os/exec 的文件
+│   ├── profiles.go    # 本地 profile CRUD + 内存临时文件管理
+│   ├── paths.go       # 路径常量集中
+│   └── kdbx.go        # 唯一允许 import gokeepasslib + advapi32 的文件:kdbx 直读
 ├── dst/
 │   ├── ccc.exe        # 构建产物(build.ps1 生成)
-│   └── .ccc/          # 运行时数据(profiles + sessions,gitignored)
+│   └── .ccc/          # 运行时数据(profiles[fallback] + sessions,gitignored)
 ├── docs/
 │   ├── go架构规范.md      # 架构契约(为什么这么写)
 │   ├── ccs验收标准.md     # 完整验收矩阵
@@ -352,7 +478,7 @@ ccc/
 └── readme.md      # 本文件
 ```
 
-架构硬约束见 [docs/go架构规范.md](docs/go架构规范.md)(五文件、四层、std-only、无 goroutine)。
+架构硬约束见 [docs/go架构规范.md](docs/go架构规范.md)(六文件、四层、仅 gokeepasslib 一个破例依赖、无 goroutine)。
 
 ---
 

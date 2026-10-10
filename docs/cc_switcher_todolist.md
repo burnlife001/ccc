@@ -22,7 +22,7 @@
 
 - **kdbx 条目 `ccc/<name>` 只存 token**——秘密的唯一存放点，轮换只改这里。
 - **模板 = 现有 `settings_*.json` 抽掉 token 后的骨架**，一个 profile 一份，放 `sync\templates\`（无秘密、可进 git、可 diff）。
-- ccc 仓库 `docs\ccs-lite-reference\settings_minimax_m3.template.json` 只是 `ccc add` 的新 profile 起点，**不参与同步**。
+- ccc 仓库 `docs\ccs-lite-reference\settings_minimax_m3.template.json` 是手动放本地 profile 的参考骨架，**不参与同步**（ccc 自身没有 `add` 子命令）。
 - 拼装逻辑：`templates\<name>.json` + kdbx 的 token → 完整 settings JSON。
 
 ## Phase 0 — 前置确认（动手前先答完）
