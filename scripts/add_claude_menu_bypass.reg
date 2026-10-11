@@ -1,0 +1,32 @@
+Windows Registry Editor Version 5.00
+
+; ========== 覆盖 add_claude_menu.reg 的菜单命令 ==========
+; 与 add_claude_menu.reg 共享同一组注册表键（runclaude / runclaude-c / runclaude-wsl / runclaude-wsl-c）
+; 导入本文件会就地覆盖同名菜单的 @command，菜单名保持不变
+; 参考 bypassPermission_after21142.ps1
+; 解决带 settings.local.json 的目录右键启动时显示 manual mode on 的问题
+; 还原：重新导入 add_claude_menu.reg 即可
+
+[HKEY_CLASSES_ROOT\Directory\Background\shell\runclaude]
+@="Claude"
+"Icon"="C:\\Windows\\System32\\cmd.exe"
+[HKEY_CLASSES_ROOT\Directory\Background\shell\runclaude\command]
+@="cmd.exe /k cd /d \"%V\" && claude --permission-mode bypassPermissions"
+
+[HKEY_CLASSES_ROOT\Directory\Background\shell\runclaude-c]
+@="Claude -c"
+"Icon"="C:\\Windows\\System32\\cmd.exe"
+[HKEY_CLASSES_ROOT\Directory\Background\shell\runclaude-c\command]
+@="cmd.exe /k cd /d \"%V\" && claude -c --permission-mode bypassPermissions"
+
+[HKEY_CLASSES_ROOT\Directory\Background\shell\runclaude-wsl]
+@="Claude (WSL)"
+"Icon"="C:\\Windows\\System32\\wsl.exe"
+[HKEY_CLASSES_ROOT\Directory\Background\shell\runclaude-wsl\command]
+@="cmd.exe /k cd /d \"%V\" && wsl -e bash -lc \"cd $(wslpath '%V') && claude --permission-mode bypassPermissions\""
+
+[HKEY_CLASSES_ROOT\Directory\Background\shell\runclaude-wsl-c]
+@="Claude -c (WSL)"
+"Icon"="C:\\Windows\\System32\\wsl.exe"
+[HKEY_CLASSES_ROOT\Directory\Background\shell\runclaude-wsl-c\command]
+@="cmd.exe /k cd /d \"%V\" && wsl -e bash -lc \"cd $(wslpath '%V') && claude -c --permission-mode bypassPermissions\""
