@@ -1,0 +1,96 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "${BASE_URL}",
+    "ANTHROPIC_AUTH_TOKEN": "${TOKEN}",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "${HAIKU}",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "${OPUS}",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "${SONNET}",
+    "ANTHROPIC_MODEL": "${MODEL}",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "DISABLE_TELEMETRY": "1",
+    "CLAUDE_CODE_ATTRIBUTION_HEADER": "0",
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "0",
+    "CLAUDE_CODE_USE_POWERSHELL_TOOL": "1",
+    "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "1000000",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "500000"
+  },
+  "modelPicker": {
+    "options": [
+      {
+        "behavesAs": "claude-haiku-5-5",
+        "label": "${HAIKU} (Haiku)",
+        "model": "${HAIKU}"
+      },
+      {
+        "behavesAs": "claude-sonnet-5-5",
+        "label": "${SONNET} (Sonnet)",
+        "model": "${SONNET}"
+      },
+      {
+        "behavesAs": "claude-opus-5-5",
+        "label": "${OPUS} (Opus)",
+        "model": "${OPUS}"
+      }
+    ]
+  },
+  "theme": "dark",
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true
+  },
+  "effort": "max",
+  "skipDangerousModePermissionPrompt": true,
+  "permissions": {
+    "allow": ["Bash","Edit","MultiEdit","Write","Read","Glob","Grep","LS","WebFetch","WebSearch","Rm"],
+    "allowEditingClaudeConfig": true,
+    "autoApproveLowRisk": true,
+    "defaultMode": "bypassPermissions"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/cbm-code-discovery-gate",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rtk hook claude"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/cbm-session-reminder"
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/cbm-auto-index",
+            "timeout": 60000
+          }
+        ]
+      },
+      {
+        "matcher": "resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/cbm-session-reminder"
+          }
+        ]
+      }
+    ]
+  }
+}
